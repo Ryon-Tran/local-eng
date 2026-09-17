@@ -10,6 +10,7 @@ import { VocabularyListView } from '@/components/VocabularyListView';
 import { ListeningPlayer } from '@/components/ListeningPlayer';
 import { ImportModal } from '@/components/ImportModal';
 import { SettingsModal } from '@/components/SettingsModal';
+import { Headphones, Moon, Sun, RotateCw, Plus } from 'lucide-react';
 import { Vocabulary, VocabularyDay, StatisticsData, UserSettings, VocabStatus, StudyMode } from '@/types';
 
 export default function Home() {
@@ -209,7 +210,20 @@ export default function Home() {
         {/* Top bar header */}
         <header className="top-bar">
           <div className="top-bar-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 24 }}>🎧</span>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--accent-gradient)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+              }}
+            >
+              <Headphones size={20} />
+            </div>
             <div>
               <h1>VOCAL ENG</h1>
               <p>Học phát âm & ghi nhớ từ vựng tiếng Anh theo ngày</p>
@@ -218,30 +232,29 @@ export default function Home() {
 
           <div className="top-bar-actions">
             <button
-              className="btn btn-secondary btn-sm"
+              className="btn btn-secondary btn-icon btn-sm"
               onClick={handleToggleTheme}
               title="Đổi giao diện"
-              style={{ padding: '6px 10px' }}
             >
-              {theme === 'dark' ? '🌙' : '☀️'}
+              {theme === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
             </button>
             <button
-              className="btn btn-secondary btn-sm"
+              className="btn btn-secondary btn-icon btn-sm"
               onClick={fetchData}
               title="Làm mới dữ liệu"
-              style={{ padding: '6px 10px' }}
             >
-              🔄
+              <RotateCw size={15} />
             </button>
             <button
               className="btn btn-primary btn-sm"
               onClick={() => handleOpenImportForDate()}
             >
-              <span>➕</span>
+              <Plus size={15} />
               <span className="hide-on-mobile">Thêm từ</span>
             </button>
           </div>
         </header>
+
 
         {/* Content Body */}
         <div className="content-body">

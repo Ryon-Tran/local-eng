@@ -1,6 +1,18 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import {
+  BookOpen,
+  Search,
+  Volume2,
+  CheckCircle2,
+  Clock,
+  CircleDashed,
+  Trash2,
+  Plus,
+  Headphones,
+  Check,
+} from 'lucide-react';
 import { Vocabulary, VocabStatus, VocabularyDay } from '@/types';
 import { speechEngine } from '@/lib/speech';
 
@@ -31,22 +43,16 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | VocabStatus>('ALL');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [playingId, setPlayingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Filter items based on date, search query, and status
   const filteredVocabs = useMemo(() => {
     return vocabularies.filter((item) => {
-      // Date filter
       if (selectedDate && selectedDate !== 'ALL' && item.studyDate !== selectedDate) {
         return false;
       }
-
-      // Status filter
       if (statusFilter !== 'ALL' && item.status !== statusFilter) {
         return false;
       }
-
-      // Search query (word, IPA, meaning)
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
         const matchWord = item.word.toLowerCase().includes(q);
@@ -56,20 +62,15 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
           return false;
         }
       }
-
       return true;
     });
   }, [vocabularies, selectedDate, statusFilter, searchQuery]);
 
-  // Selection handlers
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -82,12 +83,10 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
     }
   };
 
-  // Single word audio play
   const handlePronounceSingle = async (vocab: Vocabulary) => {
     setPlayingId(vocab.id);
     try {
       await speechEngine.speak(vocab.word);
-      // Increment listen count on backend
       await fetch(`/api/vocabularies/${vocab.id}/listen`, { method: 'POST' });
       vocab.listenCount += 1;
       vocab.lastListenedAt = new Date().toISOString();
@@ -98,7 +97,6 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
     }
   };
 
-  // Launch Listening Studio with selected words
   const handleListenSelected = () => {
     const selected = vocabularies.filter((v) => selectedIds.has(v.id));
     if (selected.length > 0) {
@@ -106,7 +104,6 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
     }
   };
 
-  // Bulk status update
   const handleBulkStatus = async (status: VocabStatus) => {
     const ids = Array.from(selectedIds);
     for (const id of ids) {
@@ -126,49 +123,54 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
   return (
     <div>
       {/* Header & Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
         <div>
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 24, fontWeight: 800 }}>
-            📚 DANH SÁCH TỪ VỰNG
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <BookOpen size={22} color="var(--accent-primary)" />
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 800 }}>
+              DANH SÁCH TỪ VỰNG
+            </h2>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
             {selectedDate && selectedDate !== 'ALL'
               ? `Đang xem từ vựng ngày: ${selectedDate}`
               : 'Tất cả từ vựng trong hệ thống'}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          {selectedDate && selectedDate !== 'ALL' && (
-            <button
-              className="btn btn-secondary"
-              onClick={() => onOpenImportForDate(selectedDate)}
-            >
-              <span>➕</span>
-              <span>Thêm vào ngày này</span>
-            </button>
-          )}
-        </div>
+        {selectedDate && selectedDate !== 'ALL' && (
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => onOpenImportForDate(selectedDate)}
+          >
+            <Plus size={14} />
+            <span>Thêm vào ngày này</span>
+          </button>
+        )}
       </div>
 
       {/* Filter Toolbar */}
       <div
         className="card"
         style={{
-          marginBottom: 20,
-          padding: 16,
+          marginBottom: 18,
+          padding: 14,
           display: 'flex',
           flexDirection: 'column',
-          gap: 14,
+          gap: 12,
         }}
       >
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {/* Search Input */}
-          <div style={{ flex: 2, minWidth: 260 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {/* Search Input with Icon */}
+          <div style={{ flex: 2, minWidth: 240, position: 'relative' }}>
+            <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>
+              <Search size={16} />
+            </div>
             <input
               type="text"
               className="input-control"
-              placeholder="🔍 Tìm theo từ tiếng Anh, phiên âm, hoặc nghĩa tiếng Việt (VD: Ability, /æ/, khả năng)..."
+              style={{ paddingLeft: 36 }}
+              placeholder="Tìm kiếm từ tiếng Anh, phiên âm, hoặc nghĩa..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               id="search-vocab-input"
@@ -176,17 +178,17 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
           </div>
 
           {/* Date Selector */}
-          <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ flex: 1, minWidth: 160 }}>
             <select
               className="select-control"
               value={selectedDate}
               onChange={(e) => onSelectDate(e.target.value)}
               id="filter-date-select"
             >
-              <option value="ALL">📅 Tất cả các ngày</option>
+              <option value="ALL">Tất cả các ngày</option>
               {days.map((d) => (
                 <option key={d.date} value={d.date}>
-                  📅 {d.date} ({d.totalCount} từ)
+                  {d.date} ({d.totalCount} từ)
                 </option>
               ))}
             </select>
@@ -194,8 +196,8 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
         </div>
 
         {/* Status Filter Chips */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button
               className={`btn btn-sm ${statusFilter === 'ALL' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setStatusFilter('ALL')}
@@ -206,24 +208,27 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
               className={`btn btn-sm ${statusFilter === 'NEW' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setStatusFilter('NEW')}
             >
-              ⚪ Chưa học ({vocabularies.filter((v) => v.status === 'NEW').length})
+              <CircleDashed size={13} />
+              <span>Chưa học ({vocabularies.filter((v) => v.status === 'NEW').length})</span>
             </button>
             <button
               className={`btn btn-sm ${statusFilter === 'LEARNING' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setStatusFilter('LEARNING')}
             >
-              🟡 Đang học ({vocabularies.filter((v) => v.status === 'LEARNING').length})
+              <Clock size={13} />
+              <span>Đang học ({vocabularies.filter((v) => v.status === 'LEARNING').length})</span>
             </button>
             <button
               className={`btn btn-sm ${statusFilter === 'LEARNED' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setStatusFilter('LEARNED')}
             >
-              🟢 Đã học ({vocabularies.filter((v) => v.status === 'LEARNED').length})
+              <CheckCircle2 size={13} />
+              <span>Đã học ({vocabularies.filter((v) => v.status === 'LEARNED').length})</span>
             </button>
           </div>
 
           {/* Selection Stats */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               className="btn btn-secondary btn-sm"
               onClick={handleSelectAll}
@@ -233,7 +238,7 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                 ? 'Bỏ chọn tất cả'
                 : 'Chọn tất cả'}
             </button>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
               Đã chọn: <strong style={{ color: 'var(--text-primary)' }}>{selectedIds.size}</strong> từ
             </span>
           </div>
@@ -245,50 +250,44 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
         <div
           className="card"
           style={{
-            marginBottom: 20,
+            marginBottom: 16,
             background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(6, 182, 212, 0.15) 100%)',
             borderColor: 'var(--accent-primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 14,
-            padding: '14px 20px',
+            gap: 12,
+            padding: '12px 18px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 22 }}>🎧</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Headphones size={20} color="var(--accent-cyan)" />
             <div>
-              <strong style={{ fontSize: 15 }}>Đã chọn {selectedIds.size} từ vựng</strong>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                Sẵn sàng để nghe và ôn tập phát âm
+              <strong style={{ fontSize: 14 }}>Đã chọn {selectedIds.size} từ vựng</strong>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                Sẵn sàng để nghe và luyện phát âm
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <button
-              className="btn btn-primary"
+              className="btn btn-primary btn-sm"
               onClick={handleListenSelected}
               id="btn-listen-selected"
             >
-              <span>🔊</span>
+              <Volume2 size={15} />
               <span>NGHE TỪ ĐÃ CHỌN</span>
             </button>
 
             <button
               className="btn btn-success btn-sm"
               onClick={() => handleBulkStatus('LEARNED')}
-              title="Đánh dấu các từ đã chọn là Đã học"
+              title="Đánh dấu là Đã học"
             >
-              🟢 Đã học
-            </button>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => handleBulkStatus('LEARNING')}
-              title="Đánh dấu các từ đã chọn là Đang học"
-            >
-              🟡 Đang học
+              <Check size={13} />
+              <span>Đã học</span>
             </button>
             <button
               className="btn btn-secondary btn-sm"
@@ -302,10 +301,10 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
 
       {/* Vocabulary Items List */}
       {filteredVocabs.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '50px 20px' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+        <div className="card" style={{ textAlign: 'center', padding: '48px 20px' }}>
+          <Search size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
           <h3 style={{ fontSize: 16, marginBottom: 6 }}>Không tìm thấy từ vựng nào</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
             Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.
           </p>
         </div>
@@ -324,7 +323,7 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
-                  gap: 14,
+                  gap: 12,
                 }}
               >
                 {/* Left: Checkbox & Word Information */}
@@ -359,7 +358,7 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                 </div>
 
                 {/* Right: Actions & Status */}
-                <div className="vocab-card-actions" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className="vocab-card-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {/* Single Pronounce Button */}
                   <button
                     className={`btn ${isPlaying ? 'btn-primary' : 'btn-secondary'} btn-sm`}
@@ -368,7 +367,8 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                     title="Nghe phát âm từ này"
                     id={`btn-listen-single-${vocab.id}`}
                   >
-                    <span>{isPlaying ? '🔊 ...' : '🔊 Nghe'}</span>
+                    <Volume2 size={14} />
+                    <span>{isPlaying ? '...' : 'Nghe'}</span>
                   </button>
 
                   {/* Status Toggle Dropdown */}
@@ -376,7 +376,7 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                     className="select-control"
                     style={{
                       width: 'auto',
-                      padding: '6px 10px',
+                      padding: '5px 8px',
                       fontSize: 12,
                       fontWeight: 600,
                       background:
@@ -406,12 +406,11 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                     className="btn btn-danger btn-sm"
                     onClick={() => confirmDelete(vocab.id)}
                     title="Xóa từ vựng"
-                    style={{ padding: '6px 10px' }}
+                    style={{ padding: '5px 8px' }}
                   >
-                    ✕
+                    <Trash2 size={14} />
                   </button>
                 </div>
-
               </div>
             );
           })}

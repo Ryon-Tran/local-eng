@@ -1,6 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
+import {
+  Plus,
+  FileText,
+  Edit3,
+  Zap,
+  Search,
+  AlertTriangle,
+  Save,
+  X,
+  Calendar,
+  CheckCircle2,
+} from 'lucide-react';
 import { ParsedVocabItem, ParseError, ConflictResolution } from '@/types';
 import { SEED_RAW_TEXT } from '@/lib/seed';
 
@@ -22,7 +34,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     defaultDate || new Date().toISOString().split('T')[0]
   );
 
-  // Bulk paste state
   const [rawText, setRawText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -32,7 +43,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const [itemResolutions, setItemResolutions] = useState<Record<string, ConflictResolution>>({});
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
-  // Manual form state
   const [manualWord, setManualWord] = useState('');
   const [manualPhonetic, setManualPhonetic] = useState('');
   const [manualPOS, setManualPOS] = useState('');
@@ -41,7 +51,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Handle Parse Button
   const handleParse = async () => {
     if (!rawText.trim()) return;
     setIsParsing(true);
@@ -59,7 +68,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         setParsedItems(data.data.items);
         setParseErrors(data.data.errors);
 
-        // Initialize default resolutions
         const initialResolutions: Record<string, ConflictResolution> = {};
         data.data.items.forEach((item: ParsedVocabItem) => {
           if (item.duplicateInfo?.exists) {
@@ -78,7 +86,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     }
   };
 
-  // Change global resolution
   const handleGlobalResolutionChange = (res: ConflictResolution) => {
     setGlobalResolution(res);
     const updated: Record<string, ConflictResolution> = {};
@@ -90,7 +97,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     setItemResolutions(updated);
   };
 
-  // Change individual resolution
   const handleItemResolutionChange = (word: string, res: ConflictResolution) => {
     setItemResolutions((prev) => ({
       ...prev,
@@ -98,7 +104,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     }));
   };
 
-  // Handle Bulk Save
   const handleSaveBulk = async () => {
     if (parsedItems.length === 0) return;
     setIsSaving(true);
@@ -128,7 +133,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         setTimeout(() => {
           onSuccess(targetDate);
           onClose();
-        }, 1200);
+        }, 1000);
       } else {
         alert(data.error || 'Lỗi khi lưu dữ liệu');
       }
@@ -140,7 +145,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     }
   };
 
-  // Handle Manual Add
   const handleManualAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualWord.trim() || !manualMeaning.trim()) {
@@ -187,20 +191,23 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 760 }}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 740 }}>
         {/* Modal Header */}
         <div className="modal-header">
-          <div>
-            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 700 }}>
-              ➕ Thêm Từ Vựng Mới
-            </h3>
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              Phân tích cú pháp tự động & Gom nhóm theo ngày học
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Plus size={20} color="var(--accent-primary)" />
+            <div>
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 17, fontWeight: 700 }}>
+                Thêm Từ Vựng Mới
+              </h3>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                Tự động tách từ & phân nhóm theo ngày học
+              </span>
+            </div>
           </div>
 
-          <button className="btn btn-secondary btn-sm" onClick={onClose}>
-            ✕
+          <button className="btn btn-secondary btn-icon btn-sm" onClick={onClose}>
+            <X size={14} />
           </button>
         </div>
 
@@ -209,45 +216,58 @@ export const ImportModal: React.FC<ImportModalProps> = ({
           <button
             style={{
               flex: 1,
-              padding: '12px 16px',
+              padding: '12px 14px',
               background: activeTab === 'bulk' ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
               border: 'none',
               borderBottom: activeTab === 'bulk' ? '2px solid var(--accent-primary)' : 'none',
               color: activeTab === 'bulk' ? 'var(--text-primary)' : 'var(--text-secondary)',
               fontWeight: 600,
-              fontSize: 14,
+              fontSize: 13,
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
             }}
             onClick={() => setActiveTab('bulk')}
             id="tab-bulk-import"
           >
-            📋 Dán hàng loạt (Bulk Paste)
+            <FileText size={15} />
+            <span>Dán hàng loạt (Bulk Paste)</span>
           </button>
 
           <button
             style={{
               flex: 1,
-              padding: '12px 16px',
+              padding: '12px 14px',
               background: activeTab === 'manual' ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
               border: 'none',
               borderBottom: activeTab === 'manual' ? '2px solid var(--accent-primary)' : 'none',
               color: activeTab === 'manual' ? 'var(--text-primary)' : 'var(--text-secondary)',
               fontWeight: 600,
-              fontSize: 14,
+              fontSize: 13,
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
             }}
             onClick={() => setActiveTab('manual')}
             id="tab-manual-import"
           >
-            ✏️ Thêm thủ công từng từ
+            <Edit3 size={15} />
+            <span>Thêm thủ công từng từ</span>
           </button>
         </div>
 
         {/* Modal Body */}
         <div className="modal-body">
           {/* Target Date Picker */}
-          <div className="input-group" style={{ marginBottom: 16 }}>
-            <label className="input-label">📅 Ngày học (studyDate):</label>
+          <div className="input-group" style={{ marginBottom: 14 }}>
+            <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Calendar size={14} />
+              <span>Ngày học (studyDate):</span>
+            </label>
             <input
               type="date"
               className="input-control"
@@ -260,18 +280,18 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
           {activeTab === 'bulk' ? (
             <div>
-              {/* Textarea & Controls */}
               <div className="input-group">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <label className="input-label">Dán văn bản từ vựng vào đây:</label>
                   <button
                     className="btn btn-secondary btn-sm"
-                    style={{ fontSize: 11, padding: '2px 8px' }}
+                    style={{ fontSize: 11, padding: '2px 8px', gap: 4 }}
                     onClick={() => setRawText(SEED_RAW_TEXT)}
                     type="button"
                     title="Dán nhanh 20 từ mẫu để thử nghiệm"
                   >
-                    ⚡ Nạp ví dụ mẫu
+                    <Zap size={12} />
+                    <span>Nạp ví dụ mẫu</span>
                   </button>
                 </div>
 
@@ -280,20 +300,21 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   placeholder={`Abandon /əˈbændən/ (v): Từ bỏ\nAbility /əˈbɪləti/ (n): Khả năng\nAccording to /əˈkɔːrdɪŋ tuː/ (prep): Theo như`}
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
-                  rows={7}
+                  rows={6}
                   id="bulk-vocab-textarea"
                 />
               </div>
 
               {/* Action Button: Analyze */}
-              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
                 <button
                   className="btn btn-primary"
                   onClick={handleParse}
                   disabled={isParsing || !rawText.trim()}
                   id="btn-analyze-vocab"
                 >
-                  {isParsing ? 'Đang phân tích...' : '🔍 Phân tích từ vựng'}
+                  <Search size={15} />
+                  <span>{isParsing ? 'Đang phân tích...' : 'Phân tích từ vựng'}</span>
                 </button>
                 {parsedItems.length > 0 && (
                   <button
@@ -313,17 +334,17 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 <div
                   className="card"
                   style={{
-                    marginBottom: 16,
+                    marginBottom: 14,
                     background: 'rgba(239, 68, 68, 0.1)',
                     borderColor: 'rgba(239, 68, 68, 0.3)',
-                    padding: 14,
+                    padding: 12,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f87171', fontWeight: 600, marginBottom: 6 }}>
-                    <span>⚠️</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#f87171', fontWeight: 600, marginBottom: 6, fontSize: 13 }}>
+                    <AlertTriangle size={15} />
                     <span>Có {parseErrors.length} dòng không thể phân tích:</span>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
                     {parseErrors.map((err, idx) => (
                       <div key={idx} style={{ color: 'var(--text-secondary)' }}>
                         <strong>Dòng {err.lineNumber}:</strong> <code style={{ color: '#fca5a5' }}>{err.rawLine}</code> — {err.reason}
@@ -333,25 +354,25 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 </div>
               )}
 
-              {/* Duplicate Warnings & Global Resolution Option */}
+              {/* Duplicate Warnings */}
               {duplicateCount > 0 && (
                 <div
                   className="card"
                   style={{
-                    marginBottom: 16,
+                    marginBottom: 14,
                     background: 'rgba(245, 158, 11, 0.1)',
                     borderColor: 'rgba(245, 158, 11, 0.3)',
-                    padding: 14,
+                    padding: 12,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 18 }}>⚠️</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <AlertTriangle size={16} color="#fbbf24" />
                       <div>
-                        <strong style={{ color: '#fbbf24' }}>
+                        <strong style={{ color: '#fbbf24', fontSize: 13 }}>
                           Phát hiện {duplicateCount} từ đã tồn tại trong hệ thống
                         </strong>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                           Chọn cách xử lý khi lưu bản ghi trùng:
                         </div>
                       </div>
@@ -359,13 +380,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
                     <select
                       className="select-control"
-                      style={{ width: 'auto', padding: '6px 12px', fontSize: 13 }}
+                      style={{ width: 'auto', padding: '4px 8px', fontSize: 12 }}
                       value={globalResolution}
                       onChange={(e) => handleGlobalResolutionChange(e.target.value as ConflictResolution)}
                     >
                       <option value="skip">Bỏ qua (Skip - Mặc định)</option>
-                      <option value="update">Cập nhật (Update thông tin)</option>
-                      <option value="duplicate">Tạo bản ghi mới (Duplicate)</option>
+                      <option value="update">Cập nhật thông tin</option>
+                      <option value="duplicate">Tạo bản ghi mới</option>
                     </select>
                   </div>
                 </div>
@@ -374,31 +395,31 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               {/* Preview Table */}
               {parsedItems.length > 0 && (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <strong style={{ fontSize: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <strong style={{ fontSize: 13 }}>
                       Đã tìm thấy {parsedItems.length} từ vựng hợp lệ:
                     </strong>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                       Xem trước trước khi lưu
                     </span>
                   </div>
 
                   <div
                     style={{
-                      maxHeight: 240,
+                      maxHeight: 220,
                       overflowY: 'auto',
                       border: '1px solid var(--border-color)',
                       borderRadius: 'var(--radius-md)',
                     }}
                   >
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                       <thead>
                         <tr style={{ background: 'var(--bg-input)', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
-                          <th style={{ padding: '8px 12px' }}>Từ tiếng Anh</th>
-                          <th style={{ padding: '8px 12px' }}>Phiên âm</th>
-                          <th style={{ padding: '8px 12px' }}>Loại</th>
-                          <th style={{ padding: '8px 12px' }}>Nghĩa</th>
-                          <th style={{ padding: '8px 12px' }}>Trùng lặp</th>
+                          <th style={{ padding: '6px 10px' }}>Từ tiếng Anh</th>
+                          <th style={{ padding: '6px 10px' }}>Phiên âm</th>
+                          <th style={{ padding: '6px 10px' }}>Loại</th>
+                          <th style={{ padding: '6px 10px' }}>Nghĩa</th>
+                          <th style={{ padding: '6px 10px' }}>Trùng lặp</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -414,21 +435,21 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                                 background: isDup ? 'rgba(245, 158, 11, 0.04)' : undefined,
                               }}
                             >
-                              <td style={{ padding: '8px 12px', fontWeight: 600 }}>{item.word}</td>
-                              <td style={{ padding: '8px 12px', color: 'var(--accent-cyan)' }}>{item.phonetic}</td>
-                              <td style={{ padding: '8px 12px' }}>
+                              <td style={{ padding: '6px 10px', fontWeight: 600 }}>{item.word}</td>
+                              <td style={{ padding: '6px 10px', color: 'var(--accent-cyan)' }}>{item.phonetic}</td>
+                              <td style={{ padding: '6px 10px' }}>
                                 {item.partOfSpeech && <span className="badge-pos">({item.partOfSpeech})</span>}
                               </td>
-                              <td style={{ padding: '8px 12px' }}>{item.meaning}</td>
-                              <td style={{ padding: '8px 12px' }}>
+                              <td style={{ padding: '6px 10px' }}>{item.meaning}</td>
+                              <td style={{ padding: '6px 10px' }}>
                                 {isDup ? (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                    <span style={{ fontSize: 11, color: '#fbbf24' }}>
-                                      Đã có ngày {item.duplicateInfo?.existingDate}
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <span style={{ fontSize: 10, color: '#fbbf24' }}>
+                                      Ngày {item.duplicateInfo?.existingDate}
                                     </span>
                                     <select
                                       className="select-control"
-                                      style={{ padding: '2px 6px', fontSize: 11 }}
+                                      style={{ padding: '2px 4px', fontSize: 10 }}
                                       value={resolution}
                                       onChange={(e) => handleItemResolutionChange(item.word, e.target.value as ConflictResolution)}
                                     >
@@ -438,7 +459,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                                     </select>
                                   </div>
                                 ) : (
-                                  <span style={{ color: '#34d399', fontSize: 12 }}>Mới</span>
+                                  <span style={{ color: '#34d399', fontSize: 11 }}>Mới</span>
                                 )}
                               </td>
                             </tr>
@@ -451,13 +472,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               )}
 
               {saveMessage && (
-                <div style={{ marginTop: 14, color: '#34d399', fontWeight: 600, fontSize: 13 }}>
-                  ✓ {saveMessage}
+                <div style={{ marginTop: 12, color: '#34d399', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <CheckCircle2 size={16} />
+                  <span>{saveMessage}</span>
                 </div>
               )}
             </div>
           ) : (
-            /* Manual Form */
             <form onSubmit={handleManualAdd}>
               <div className="input-group">
                 <label className="input-label">Từ hoặc cụm từ tiếng Anh (*):</label>
@@ -472,8 +493,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: 12 }}>
-                <div className="input-group" style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="input-group" style={{ flex: 1, minWidth: 140 }}>
                   <label className="input-label">Phiên âm IPA:</label>
                   <input
                     type="text"
@@ -484,12 +505,12 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   />
                 </div>
 
-                <div className="input-group" style={{ flex: 1 }}>
+                <div className="input-group" style={{ flex: 1, minWidth: 140 }}>
                   <label className="input-label">Từ loại:</label>
                   <input
                     type="text"
                     className="input-control"
-                    placeholder="VD: v, n, adj, prep, n/v"
+                    placeholder="VD: v, n, adj, prep"
                     value={manualPOS}
                     onChange={(e) => setManualPOS(e.target.value)}
                   />
@@ -510,19 +531,21 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               </div>
 
               {manualError && (
-                <div style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>
-                  ⚠️ {manualError}
+                <div style={{ color: '#f87171', fontSize: 12, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={14} />
+                  <span>{manualError}</span>
                 </div>
               )}
 
               <button
                 type="submit"
                 className="btn btn-primary"
-                style={{ width: '100%', marginTop: 8 }}
+                style={{ width: '100%', marginTop: 6 }}
                 disabled={isSaving}
                 id="btn-submit-manual"
               >
-                {isSaving ? 'Đang lưu...' : '+ Thêm từ vào danh sách'}
+                <Plus size={16} />
+                <span>{isSaving ? 'Đang lưu...' : 'Thêm từ vào danh sách'}</span>
               </button>
             </form>
           )}
@@ -540,7 +563,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               disabled={isSaving || parsedItems.length === 0}
               id="btn-save-bulk"
             >
-              {isSaving ? 'Đang lưu...' : `💾 Lưu ${parsedItems.length} từ vựng`}
+              <Save size={15} />
+              <span>{isSaving ? 'Đang lưu...' : `Lưu ${parsedItems.length} từ vựng`}</span>
             </button>
           </div>
         )}

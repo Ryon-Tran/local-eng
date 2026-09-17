@@ -1,8 +1,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import {
+  Settings,
+  Volume2,
+  Gauge,
+  Repeat,
+  Clock,
+  Moon,
+  Sun,
+  X,
+  Radio,
+  Sparkles,
+  Save,
+} from 'lucide-react';
 import { UserSettings } from '@/types';
-import { speechEngine } from '@/lib/speech';
+import { speechEngine, FormattedVoice } from '@/lib/speech';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -29,10 +42,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [pauseSeconds, setPauseSeconds] = useState(settings.pauseBetweenWords || 2);
   const [autoMarkListened, setAutoMarkListened] = useState(settings.autoMarkListened ?? true);
   const [autoMarkLearned, setAutoMarkLearned] = useState(settings.autoMarkLearned ?? false);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [availableVoices, setAvailableVoices] = useState<FormattedVoice[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
 
-  // Load available English voices from browser
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const load = () => {
@@ -48,13 +61,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleTestVoice = () => {
-    speechEngine.speak('Hello! This is your English vocabulary pronunciation assistant.', {
+  const handleTestVoice = async () => {
+    setIsTesting(true);
+    await speechEngine.speak('Hello! This is your English vocabulary pronunciation assistant.', {
       voiceURI: voice,
       rate: speed,
       pitch,
       volume,
     });
+    setIsTesting(false);
   };
 
   const handleSave = async () => {
@@ -71,6 +86,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         autoMarkLearned,
         theme,
       });
+      speechEngine.setActiveVoice(voice);
       onClose();
     } catch (e) {
       console.error(e);
@@ -82,30 +98,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 580 }}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>⚙️</span>
+            <Settings size={20} color="var(--accent-primary)" />
             <div>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 700 }}>
-                Cài Đặt Học Tập & Phát Âm
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 17, fontWeight: 700 }}>
+                Cài Đặt Giọng Đọc & Học Tập
               </h3>
               <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                Tùy biến giọng đọc TTS, tốc độ phát và chế độ học
+                Tùy chỉnh giọng đọc tiếng Anh, tốc độ phát và giao diện
               </span>
             </div>
           </div>
 
-          <button className="btn btn-secondary btn-sm" onClick={onClose}>
-            ✕
+          <button className="btn btn-secondary btn-icon btn-sm" onClick={onClose}>
+            <X size={14} />
           </button>
         </div>
 
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Voice Selector */}
           <div className="input-group" style={{ marginBottom: 0 }}>
-            <label className="input-label">Giọng đọc tiếng Anh (English Voice):</label>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Radio size={14} />
+              <span>Giọng đọc tiếng Anh (English Voice):</span>
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
               <select
                 className="select-control"
                 value={voice}
@@ -115,19 +134,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <option value="">-- Mặc định trình duyệt (English) --</option>
                 {availableVoices.map((v) => (
                   <option key={v.voiceURI} value={v.voiceURI}>
-                    {v.name} ({v.lang})
+                    {v.label}
                   </option>
                 ))}
               </select>
 
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-secondary btn-sm"
                 onClick={handleTestVoice}
+                disabled={isTesting}
                 title="Nghe thử giọng này"
                 id="btn-test-voice"
+                style={{ flexShrink: 0, gap: 4 }}
               >
-                🔊 Thử
+                <Volume2 size={14} />
+                <span>{isTesting ? 'Đang đọc...' : 'Thử giọng'}</span>
               </button>
             </div>
           </div>
@@ -135,8 +157,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Speed */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <label className="input-label">Tốc độ đọc (Speed): <strong>{speed}x</strong></label>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Gauge size={14} />
+                <span>Tốc độ đọc (Speed): <strong>{speed}x</strong></span>
+              </label>
+              <div style={{ display: 'flex', gap: 4 }}>
                 {[0.75, 1.0, 1.25, 1.5].map((s) => (
                   <button
                     key={s}
@@ -162,9 +187,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Repeat count & Pause */}
-          <div style={{ display: 'flex', gap: 16 }}>
-            <div style={{ flex: 1 }} className="input-group">
-              <label className="input-label">Số lần lặp lại mỗi từ:</label>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 160 }} className="input-group">
+              <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Repeat size={14} />
+                <span>Lặp lại mỗi từ:</span>
+              </label>
               <select
                 className="select-control"
                 value={repeatCount}
@@ -177,8 +205,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </select>
             </div>
 
-            <div style={{ flex: 1 }} className="input-group">
-              <label className="input-label">Thời gian nghỉ giữa các từ:</label>
+            <div style={{ flex: 1, minWidth: 160 }} className="input-group">
+              <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Clock size={14} />
+                <span>Khoảng nghỉ giữa các từ:</span>
+              </label>
               <select
                 className="select-control"
                 value={pauseSeconds}
@@ -192,42 +223,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* Pitch & Volume */}
-          <div style={{ display: 'flex', gap: 16 }}>
-            <div style={{ flex: 1 }}>
-              <label className="input-label" style={{ display: 'block', marginBottom: 6 }}>
-                Cao độ (Pitch): {pitch}
-              </label>
-              <input
-                type="range"
-                min="0.8"
-                max="1.3"
-                step="0.1"
-                value={pitch}
-                onChange={(e) => setPitch(Number(e.target.value))}
-                style={{ width: '100%' }}
-              />
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <label className="input-label" style={{ display: 'block', marginBottom: 6 }}>
-                Âm lượng (Volume): {Math.round(volume * 100)}%
-              </label>
-              <input
-                type="range"
-                min="0.2"
-                max="1"
-                step="0.1"
-                value={volume}
-                onChange={(e) => setVolume(Number(e.target.value))}
-                style={{ width: '100%' }}
-              />
-            </div>
-          </div>
-
           {/* Automations */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 6, borderTop: '1px solid var(--border-color)' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, cursor: 'pointer' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6, borderTop: '1px solid var(--border-color)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={autoMarkListened}
@@ -237,7 +235,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <span>Tự động tăng số lần nghe (listenCount) khi phát từ</span>
             </label>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={autoMarkLearned}
@@ -259,10 +257,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-secondary btn-sm"
               onClick={onToggleTheme}
+              style={{ gap: 6 }}
             >
-              {theme === 'dark' ? '🌙 Chuyển sang Sáng' : '☀️ Chuyển sang Tối'}
+              {theme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
+              <span>{theme === 'dark' ? 'Chuyển sang Sáng' : 'Chuyển sang Tối'}</span>
             </button>
           </div>
         </div>
@@ -277,7 +277,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             disabled={isSaving}
             id="btn-save-settings"
           >
-            {isSaving ? 'Đang lưu...' : 'Lưu cài đặt'}
+            <Save size={15} />
+            <span>{isSaving ? 'Đang lưu...' : 'Lưu cài đặt'}</span>
           </button>
         </div>
       </div>
