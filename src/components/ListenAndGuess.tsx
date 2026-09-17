@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, Check, ArrowRight, SkipBack, SkipForward, Sparkles, X } from 'lucide-react';
+import { Volume2, Check, ArrowRight, SkipBack, SkipForward, Sparkles, X, Lightbulb, BookOpen } from 'lucide-react';
 import { Vocabulary } from '@/types';
 import { speechEngine } from '@/lib/speech';
 
@@ -47,6 +47,11 @@ export const ListenAndGuess: React.FC<ListenAndGuessProps> = ({
     if (currentVocab) {
       speechEngine.speak(currentVocab.word, { voiceURI, rate: speed });
     }
+  };
+
+  const handleSpeakExample = (sentence: string) => {
+    const englishPart = sentence.split('(')[0].trim();
+    speechEngine.speak(englishPart, { voiceURI, rate: speed });
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
@@ -182,6 +187,64 @@ export const ListenAndGuess: React.FC<ListenAndGuessProps> = ({
           <p style={{ fontSize: 16, color: 'var(--text-primary)', fontWeight: 500, marginTop: 4 }}>
             {currentVocab.meaning}
           </p>
+
+          {/* Usage Collocation Card */}
+          {currentVocab.usage && (
+            <div
+              style={{
+                background: 'rgba(99, 102, 241, 0.08)',
+                border: '1px solid rgba(99, 102, 241, 0.25)',
+                borderRadius: 'var(--radius-md)',
+                padding: '10px 14px',
+                textAlign: 'left',
+                width: '100%',
+                marginTop: 6,
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Lightbulb size={13} />
+                <span>CÁCH DÙNG / COLLOCATION:</span>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>
+                {currentVocab.usage}
+              </div>
+            </div>
+          )}
+
+          {/* Example Sentence Card */}
+          {currentVocab.exampleSentence && (
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                padding: '10px 14px',
+                textAlign: 'left',
+                width: '100%',
+                marginTop: 4,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <BookOpen size={13} />
+                  <span>VÍ DỤ THỰC TẾ:</span>
+                </div>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: 11, padding: '3px 8px', gap: 4, height: 26 }}
+                  onClick={() => handleSpeakExample(currentVocab.exampleSentence!)}
+                  title="Nghe phát âm câu ví dụ"
+                  type="button"
+                >
+                  <Volume2 size={12} color="var(--accent-primary)" />
+                  <span>Nghe câu</span>
+                </button>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-primary)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                {currentVocab.exampleSentence}
+              </div>
+            </div>
+          )}
 
           <div style={{ marginTop: 10 }}>
             <button

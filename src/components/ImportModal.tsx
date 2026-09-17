@@ -47,6 +47,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const [manualPhonetic, setManualPhonetic] = useState('');
   const [manualPOS, setManualPOS] = useState('');
   const [manualMeaning, setManualMeaning] = useState('');
+  const [manualUsage, setManualUsage] = useState('');
+  const [manualExample, setManualExample] = useState('');
   const [manualError, setManualError] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -115,6 +117,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         phonetic: item.phonetic,
         partOfSpeech: item.partOfSpeech,
         meaning: item.meaning,
+        usage: item.usage,
+        exampleSentence: item.exampleSentence,
         resolution: itemResolutions[item.word.toLowerCase()] || globalResolution,
       }));
 
@@ -164,6 +168,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
           phonetic: manualPhonetic.trim(),
           partOfSpeech: manualPOS.trim(),
           meaning: manualMeaning.trim(),
+          usage: manualUsage.trim() || undefined,
+          exampleSentence: manualExample.trim() || undefined,
           date: targetDate,
         }),
       });
@@ -174,6 +180,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         setManualPhonetic('');
         setManualPOS('');
         setManualMeaning('');
+        setManualUsage('');
+        setManualExample('');
         onSuccess(targetDate);
         onClose();
       } else {
@@ -440,7 +448,19 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                               <td style={{ padding: '6px 10px' }}>
                                 {item.partOfSpeech && <span className="badge-pos">({item.partOfSpeech})</span>}
                               </td>
-                              <td style={{ padding: '6px 10px' }}>{item.meaning}</td>
+                              <td style={{ padding: '6px 10px' }}>
+                                <div style={{ fontWeight: 500 }}>{item.meaning}</div>
+                                {item.usage && (
+                                  <div style={{ fontSize: 11, color: 'var(--accent-primary)', marginTop: 2 }}>
+                                    💡 {item.usage}
+                                  </div>
+                                )}
+                                {item.exampleSentence && (
+                                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: 2 }}>
+                                    📝 {item.exampleSentence}
+                                  </div>
+                                )}
+                              </td>
                               <td style={{ padding: '6px 10px' }}>
                                 {isDup ? (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -527,6 +547,30 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   onChange={(e) => setManualMeaning(e.target.value)}
                   required
                   id="manual-meaning-input"
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Cách dùng / Collocations (tùy chọn):</label>
+                <input
+                  type="text"
+                  className="input-control"
+                  placeholder="VD: abandon a plan, abandon hope, abandon someone"
+                  value={manualUsage}
+                  onChange={(e) => setManualUsage(e.target.value)}
+                  id="manual-usage-input"
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Ví dụ câu & nghĩa tiếng Việt (tùy chọn):</label>
+                <textarea
+                  className="textarea-control"
+                  rows={2}
+                  placeholder="VD: They had to abandon the car. (Họ đã phải bỏ lại chiếc xe.)"
+                  value={manualExample}
+                  onChange={(e) => setManualExample(e.target.value)}
+                  id="manual-example-input"
                 />
               </div>
 
