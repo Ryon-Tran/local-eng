@@ -7,6 +7,8 @@ export interface Vocabulary {
   phonetic: string;
   partOfSpeech: string;
   meaning: string;
+  usage?: string;
+  exampleSentence?: string;
   status: VocabStatus;
   listenCount: number;
   lastListenedAt: string | null;
@@ -44,6 +46,8 @@ export interface ParsedVocabItem {
   phonetic: string;
   partOfSpeech: string;
   meaning: string;
+  usage?: string;
+  exampleSentence?: string;
   rawLine: string;
   lineNumber: number;
   duplicateInfo?: {
@@ -75,6 +79,8 @@ export interface ImportPayload {
     phonetic: string;
     partOfSpeech: string;
     meaning: string;
+    usage?: string;
+    exampleSentence?: string;
     resolution?: ConflictResolution;
   }>;
 }
