@@ -41,12 +41,17 @@ export async function initDb(): Promise<void> {
       phonetic VARCHAR(255),
       part_of_speech VARCHAR(100),
       meaning TEXT NOT NULL,
+      usage TEXT,
+      example_sentence TEXT,
       status VARCHAR(50) DEFAULT 'NEW',
       listen_count INT DEFAULT 0,
       last_listened_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    ALTER TABLE vocabularies ADD COLUMN IF NOT EXISTS usage TEXT;
+    ALTER TABLE vocabularies ADD COLUMN IF NOT EXISTS example_sentence TEXT;
 
     CREATE INDEX IF NOT EXISTS idx_vocab_day_id ON vocabularies(day_id);
     CREATE INDEX IF NOT EXISTS idx_vocab_word ON vocabularies(word);
@@ -76,13 +81,22 @@ export async function initDb(): Promise<void> {
     `);
   }
 
-  // Auto seed 20 words if database has 0 days
-  const countRes = await p.query('SELECT COUNT(*) as count FROM vocabulary_days');
-  if (parseInt(countRes.rows[0].count, 10) === 0) {
-    await seedInitialData();
-  }
+  // Update existing vocabularies with seed usage/examples if currently empty
+  await syncSeedExamples(p);
 
   isInitialized = true;
+}
+
+async function syncSeedExamples(p: Pool) {
+  for (const item of SEED_VOCABULARIES) {
+    await p.query(
+      `UPDATE vocabularies
+       SET usage = COALESCE(NULLIF(usage, ''), $1),
+           example_sentence = COALESCE(NULLIF(example_sentence, ''), $2)
+       WHERE LOWER(word) = LOWER($3)`,
+      [item.usage, item.exampleSentence, item.word]
+    );
+  }
 }
 
 export async function seedInitialData(): Promise<void> {
@@ -98,11 +112,26 @@ export async function seedInitialData(): Promise<void> {
   for (let i = 0; i < SEED_VOCABULARIES.length; i++) {
     const item = SEED_VOCABULARIES[i];
     const id = `vocab_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`;
-    await p.query(
-      `INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, status, listen_count)
-       VALUES ($1, $2, $3, $4, $5, $6, 'NEW', 0)`,
-      [id, dayId, item.word, item.phonetic, item.partOfSpeech, item.meaning]
-    );
+
+    const existing = await p.query('SELECT id FROM vocabularies WHERE LOWER(word) = LOWER($1) AND day_id = $2', [
+      item.word,
+      dayId,
+    ]);
+
+    if (existing.rows.length > 0) {
+      await p.query(
+        `UPDATE vocabularies
+         SET usage = $1, example_sentence = $2, meaning = $3, phonetic = $4, part_of_speech = $5
+         WHERE id = $6`,
+        [item.usage, item.exampleSentence, item.meaning, item.phonetic, item.partOfSpeech, existing.rows[0].id]
+      );
+    } else {
+      await p.query(
+        `INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, usage, example_sentence, status, listen_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'NEW', 0)`,
+        [id, dayId, item.word, item.phonetic, item.partOfSpeech, item.meaning, item.usage, item.exampleSentence]
+      );
+    }
   }
 }
 
@@ -147,7 +176,8 @@ export async function getDayByDate(date: string) {
   const vocabsRes = await p.query(
     `SELECT 
        id, day_id as "dayId", word, phonetic, part_of_speech as "partOfSpeech",
-       meaning, status, listen_count as "listenCount", last_listened_at as "lastListenedAt",
+       meaning, usage, example_sentence as "exampleSentence",
+       status, listen_count as "listenCount", last_listened_at as "lastListenedAt",
        created_at as "createdAt", updated_at as "updatedAt"
      FROM vocabularies
      WHERE day_id = $1
@@ -185,7 +215,8 @@ export async function getVocabularies(filters?: {
   let sql = `
     SELECT 
       v.id, v.day_id as "dayId", v.word, v.phonetic, v.part_of_speech as "partOfSpeech",
-      v.meaning, v.status, v.listen_count as "listenCount", v.last_listened_at as "lastListenedAt",
+      v.meaning, v.usage, v.example_sentence as "exampleSentence",
+      v.status, v.listen_count as "listenCount", v.last_listened_at as "lastListenedAt",
       v.created_at as "createdAt", v.updated_at as "updatedAt", d.date as "studyDate"
     FROM vocabularies v
     JOIN vocabulary_days d ON v.day_id = d.id
@@ -210,7 +241,7 @@ export async function getVocabularies(filters?: {
 
   if (filters?.search && filters.search.trim()) {
     params.push(`%${filters.search.trim().toLowerCase()}%`);
-    sql += ` AND (LOWER(v.word) LIKE $${params.length} OR LOWER(v.meaning) LIKE $${params.length} OR LOWER(v.phonetic) LIKE $${params.length})`;
+    sql += ` AND (LOWER(v.word) LIKE $${params.length} OR LOWER(v.meaning) LIKE $${params.length} OR LOWER(v.phonetic) LIKE $${params.length} OR LOWER(COALESCE(v.usage, '')) LIKE $${params.length})`;
   }
 
   sql += ` ORDER BY d.date DESC, v.created_at ASC`;
@@ -230,7 +261,8 @@ export async function getVocabularyById(id: string): Promise<Vocabulary | null> 
   const res = await p.query(
     `SELECT 
        v.id, v.day_id as "dayId", v.word, v.phonetic, v.part_of_speech as "partOfSpeech",
-       v.meaning, v.status, v.listen_count as "listenCount", v.last_listened_at as "lastListenedAt",
+       v.meaning, v.usage, v.example_sentence as "exampleSentence",
+       v.status, v.listen_count as "listenCount", v.last_listened_at as "lastListenedAt",
        v.created_at as "createdAt", v.updated_at as "updatedAt", d.date as "studyDate"
      FROM vocabularies v
      JOIN vocabulary_days d ON v.day_id = d.id
@@ -246,6 +278,8 @@ export async function createVocabulary(data: {
   phonetic?: string;
   partOfSpeech?: string;
   meaning: string;
+  usage?: string;
+  exampleSentence?: string;
 }): Promise<Vocabulary> {
   await initDb();
   const p = getPool();
@@ -253,9 +287,18 @@ export async function createVocabulary(data: {
   const id = `vocab_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
   await p.query(
-    `INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, status, listen_count)
-     VALUES ($1, $2, $3, $4, $5, $6, 'NEW', 0)`,
-    [id, dayId, data.word.trim(), data.phonetic?.trim() || '', data.partOfSpeech?.trim() || '', data.meaning.trim()]
+    `INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, usage, example_sentence, status, listen_count)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'NEW', 0)`,
+    [
+      id,
+      dayId,
+      data.word.trim(),
+      data.phonetic?.trim() || '',
+      data.partOfSpeech?.trim() || '',
+      data.meaning.trim(),
+      data.usage?.trim() || '',
+      data.exampleSentence?.trim() || '',
+    ]
   );
 
   return (await getVocabularyById(id))!;
@@ -268,6 +311,8 @@ export async function updateVocabulary(
     phonetic: string;
     partOfSpeech: string;
     meaning: string;
+    usage: string;
+    exampleSentence: string;
     status: string;
   }>
 ): Promise<Vocabulary | null> {
@@ -291,6 +336,14 @@ export async function updateVocabulary(
   if (data.meaning !== undefined) {
     params.push(data.meaning.trim());
     updates.push(`meaning = $${params.length}`);
+  }
+  if (data.usage !== undefined) {
+    params.push(data.usage.trim());
+    updates.push(`usage = $${params.length}`);
+  }
+  if (data.exampleSentence !== undefined) {
+    params.push(data.exampleSentence.trim());
+    updates.push(`example_sentence = $${params.length}`);
   }
   if (data.status !== undefined) {
     params.push(data.status);
@@ -376,6 +429,8 @@ export async function importVocabularies(
     phonetic: string;
     partOfSpeech: string;
     meaning: string;
+    usage?: string;
+    exampleSentence?: string;
     resolution?: ConflictResolution;
   }>
 ): Promise<{ added: number; updated: number; skipped: number }> {
@@ -403,9 +458,16 @@ export async function importVocabularies(
       } else if (resolution === 'update') {
         await p.query(
           `UPDATE vocabularies
-           SET phonetic = $1, part_of_speech = $2, meaning = $3, updated_at = NOW()
-           WHERE id = $4`,
-          [item.phonetic || '', item.partOfSpeech || '', item.meaning.trim(), existingId]
+           SET phonetic = $1, part_of_speech = $2, meaning = $3, usage = $4, example_sentence = $5, updated_at = NOW()
+           WHERE id = $6`,
+          [
+            item.phonetic || '',
+            item.partOfSpeech || '',
+            item.meaning.trim(),
+            item.usage || '',
+            item.exampleSentence || '',
+            existingId,
+          ]
         );
         updated++;
         continue;
@@ -414,9 +476,18 @@ export async function importVocabularies(
 
     const id = `vocab_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`;
     await p.query(
-      `INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, status, listen_count)
-       VALUES ($1, $2, $3, $4, $5, $6, 'NEW', 0)`,
-      [id, dayId, item.word.trim(), item.phonetic || '', item.partOfSpeech || '', item.meaning.trim()]
+      `INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, usage, example_sentence, status, listen_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'NEW', 0)`,
+      [
+        id,
+        dayId,
+        item.word.trim(),
+        item.phonetic || '',
+        item.partOfSpeech || '',
+        item.meaning.trim(),
+        item.usage || '',
+        item.exampleSentence || '',
+      ]
     );
     added++;
   }

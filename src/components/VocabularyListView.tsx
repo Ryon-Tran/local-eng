@@ -12,6 +12,11 @@ import {
   Plus,
   Headphones,
   Check,
+  Edit3,
+  Lightbulb,
+  Quote,
+  X,
+  Save,
 } from 'lucide-react';
 import { Vocabulary, VocabStatus, VocabularyDay } from '@/types';
 import { speechEngine } from '@/lib/speech';
@@ -43,6 +48,17 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | VocabStatus>('ALL');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [playingExampleId, setPlayingExampleId] = useState<string | null>(null);
+
+  // Edit vocabulary modal state
+  const [editingVocab, setEditingVocab] = useState<Vocabulary | null>(null);
+  const [editWord, setEditWord] = useState('');
+  const [editPhonetic, setEditPhonetic] = useState('');
+  const [editPOS, setEditPOS] = useState('');
+  const [editMeaning, setEditMeaning] = useState('');
+  const [editUsage, setEditUsage] = useState('');
+  const [editExample, setEditExample] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Filter items based on date, search query, and status
   const filteredVocabs = useMemo(() => {
@@ -56,9 +72,11 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
         const matchWord = item.word.toLowerCase().includes(q);
-        const matchIPA = item.phonetic.toLowerCase().includes(q);
-        const matchMeaning = item.meaning.toLowerCase().includes(q);
-        if (!matchWord && !matchIPA && !matchMeaning) {
+        const matchIPA = item.phonetic?.toLowerCase().includes(q);
+        const matchMeaning = item.meaning?.toLowerCase().includes(q);
+        const matchUsage = item.usage?.toLowerCase().includes(q);
+        const matchExample = item.exampleSentence?.toLowerCase().includes(q);
+        if (!matchWord && !matchIPA && !matchMeaning && !matchUsage && !matchExample) {
           return false;
         }
       }
@@ -97,6 +115,20 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
     }
   };
 
+  // Pronounce example sentence
+  const handlePronounceExample = async (vocabId: string, exampleSentence: string) => {
+    setPlayingExampleId(vocabId);
+    try {
+      // Extract English sentence before parentheses or Vietnamese translation
+      const cleanEnglish = exampleSentence.split('(')[0].trim() || exampleSentence;
+      await speechEngine.speak(cleanEnglish);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPlayingExampleId(null);
+    }
+  };
+
   const handleListenSelected = () => {
     const selected = vocabularies.filter((v) => selectedIds.has(v.id));
     if (selected.length > 0) {
@@ -117,6 +149,49 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
       await onDeleteVocab(id);
       selectedIds.delete(id);
       setSelectedIds(new Set(selectedIds));
+    }
+  };
+
+  // Open Edit Modal
+  const handleOpenEdit = (vocab: Vocabulary) => {
+    setEditingVocab(vocab);
+    setEditWord(vocab.word);
+    setEditPhonetic(vocab.phonetic || '');
+    setEditPOS(vocab.partOfSpeech || '');
+    setEditMeaning(vocab.meaning);
+    setEditUsage(vocab.usage || '');
+    setEditExample(vocab.exampleSentence || '');
+  };
+
+  // Save Edit
+  const handleSaveEdit = async () => {
+    if (!editingVocab || !editWord.trim() || !editMeaning.trim()) return;
+    setIsSavingEdit(true);
+    try {
+      const res = await fetch(`/api/vocabularies/${editingVocab.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          word: editWord.trim(),
+          phonetic: editPhonetic.trim(),
+          partOfSpeech: editPOS.trim(),
+          meaning: editMeaning.trim(),
+          usage: editUsage.trim(),
+          exampleSentence: editExample.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingVocab(null);
+        onRefresh();
+      } else {
+        alert(data.error || 'Lỗi khi cập nhật từ vựng');
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Lỗi: ' + e.message);
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -161,7 +236,6 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
         }}
       >
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {/* Search Input with Icon */}
           <div style={{ flex: 2, minWidth: 240, position: 'relative' }}>
             <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>
               <Search size={16} />
@@ -170,14 +244,13 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
               type="text"
               className="input-control"
               style={{ paddingLeft: 36 }}
-              placeholder="Tìm kiếm từ tiếng Anh, phiên âm, hoặc nghĩa..."
+              placeholder="Tìm theo từ, phiên âm, nghĩa, cách dùng hoặc ví dụ..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               id="search-vocab-input"
             />
           </div>
 
-          {/* Date Selector */}
           <div style={{ flex: 1, minWidth: 160 }}>
             <select
               className="select-control"
@@ -227,7 +300,6 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
             </button>
           </div>
 
-          {/* Selection Stats */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               className="btn btn-secondary btn-sm"
@@ -245,7 +317,7 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
         </div>
       </div>
 
-      {/* Floating or Top Action Bar when words are selected */}
+      {/* Selected Action Bar */}
       {selectedIds.size > 0 && (
         <div
           className="card"
@@ -299,7 +371,7 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
         </div>
       )}
 
-      {/* Vocabulary Items List */}
+      {/* Vocabulary Cards List */}
       {filteredVocabs.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '48px 20px' }}>
           <Search size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
@@ -309,10 +381,11 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
           </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filteredVocabs.map((vocab) => {
             const isSelected = selectedIds.has(vocab.id);
             const isPlaying = playingId === vocab.id;
+            const isPlayingEx = playingExampleId === vocab.id;
 
             return (
               <div
@@ -320,25 +393,24 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                 className={`vocab-card ${isSelected ? 'selected' : ''}`}
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: 12,
+                  flexDirection: 'column',
+                  gap: 10,
+                  padding: '16px 20px',
                 }}
               >
-                {/* Left: Checkbox & Word Information */}
-                <div className="vocab-card-main" style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 220 }}>
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => handleToggleSelect(vocab.id)}
-                    style={{ width: 20, height: 20, cursor: 'pointer', flexShrink: 0 }}
-                    id={`check-vocab-${vocab.id}`}
-                  />
+                {/* Header Row: Checkbox, Word, IPA, POS, Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleSelect(vocab.id)}
+                      style={{ width: 18, height: 18, cursor: 'pointer', flexShrink: 0 }}
+                      id={`check-vocab-${vocab.id}`}
+                    />
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span className="vocab-word">{vocab.word}</span>
+                      <span className="vocab-word" style={{ fontSize: 18 }}>{vocab.word}</span>
                       {vocab.phonetic && (
                         <span className="phonetic-tag">{vocab.phonetic}</span>
                       )}
@@ -346,74 +418,241 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                         <span className="badge-pos">({vocab.partOfSpeech})</span>
                       )}
                     </div>
+                  </div>
 
-                    <div className="vocab-meaning">{vocab.meaning}</div>
+                  {/* Actions Row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      className={`btn ${isPlaying ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                      onClick={() => handlePronounceSingle(vocab)}
+                      disabled={isPlaying}
+                      title="Nghe phát âm từ này"
+                      id={`btn-listen-single-${vocab.id}`}
+                    >
+                      <Volume2 size={14} />
+                      <span>{isPlaying ? '...' : 'Nghe'}</span>
+                    </button>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-                      <span>📅 {vocab.studyDate}</span>
-                      <span>•</span>
-                      <span>Đã nghe: <strong>{vocab.listenCount}</strong> lần</span>
-                    </div>
+                    <select
+                      className="select-control"
+                      style={{
+                        width: 'auto',
+                        padding: '5px 8px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background:
+                          vocab.status === 'LEARNED'
+                            ? 'var(--status-learned-bg)'
+                            : vocab.status === 'LEARNING'
+                            ? 'var(--status-learning-bg)'
+                            : 'var(--status-new-bg)',
+                        color:
+                          vocab.status === 'LEARNED'
+                            ? 'var(--status-learned-text)'
+                            : vocab.status === 'LEARNING'
+                            ? 'var(--status-learning-text)'
+                            : 'var(--status-new-text)',
+                        borderColor: 'transparent',
+                      }}
+                      value={vocab.status}
+                      onChange={(e) => onUpdateStatus(vocab.id, e.target.value as VocabStatus)}
+                    >
+                      <option value="NEW">⚪ Chưa học</option>
+                      <option value="LEARNING">🟡 Đang học</option>
+                      <option value="LEARNED">🟢 Đã học</option>
+                    </select>
+
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleOpenEdit(vocab)}
+                      title="Chỉnh sửa từ vựng, cách dùng & ví dụ"
+                      style={{ padding: '5px 8px' }}
+                    >
+                      <Edit3 size={13} />
+                    </button>
+
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => confirmDelete(vocab.id)}
+                      title="Xóa từ vựng"
+                      style={{ padding: '5px 8px' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
 
-                {/* Right: Actions & Status */}
-                <div className="vocab-card-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {/* Single Pronounce Button */}
-                  <button
-                    className={`btn ${isPlaying ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-                    onClick={() => handlePronounceSingle(vocab)}
-                    disabled={isPlaying}
-                    title="Nghe phát âm từ này"
-                    id={`btn-listen-single-${vocab.id}`}
-                  >
-                    <Volume2 size={14} />
-                    <span>{isPlaying ? '...' : 'Nghe'}</span>
-                  </button>
+                {/* Meaning */}
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)', paddingLeft: 30 }}>
+                  {vocab.meaning}
+                </div>
 
-                  {/* Status Toggle Dropdown */}
-                  <select
-                    className="select-control"
+                {/* Usage / Collocations */}
+                {vocab.usage && (
+                  <div
                     style={{
-                      width: 'auto',
-                      padding: '5px 8px',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      background:
-                        vocab.status === 'LEARNED'
-                          ? 'var(--status-learned-bg)'
-                          : vocab.status === 'LEARNING'
-                          ? 'var(--status-learning-bg)'
-                          : 'var(--status-new-bg)',
-                      color:
-                        vocab.status === 'LEARNED'
-                          ? 'var(--status-learned-text)'
-                          : vocab.status === 'LEARNING'
-                          ? 'var(--status-learning-text)'
-                          : 'var(--status-new-text)',
-                      borderColor: 'transparent',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 8,
+                      fontSize: 13,
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.2)',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      marginLeft: 30,
                     }}
-                    value={vocab.status}
-                    onChange={(e) => onUpdateStatus(vocab.id, e.target.value as VocabStatus)}
                   >
-                    <option value="NEW">⚪ Chưa học</option>
-                    <option value="LEARNING">🟡 Đang học</option>
-                    <option value="LEARNED">🟢 Đã học</option>
-                  </select>
+                    <Lightbulb size={15} color="#818cf8" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <div>
+                      <strong style={{ color: '#a5b4fc', marginRight: 6 }}>Cách dùng / Collocations:</strong>
+                      <span style={{ color: 'var(--text-secondary)' }}>{vocab.usage}</span>
+                    </div>
+                  </div>
+                )}
 
-                  {/* Delete Button */}
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => confirmDelete(vocab.id)}
-                    title="Xóa từ vựng"
-                    style={{ padding: '5px 8px' }}
+                {/* Example Sentence with Audio Button */}
+                {vocab.exampleSentence && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      fontSize: 13,
+                      background: 'rgba(6, 182, 212, 0.08)',
+                      border: '1px solid rgba(6, 182, 212, 0.2)',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      marginLeft: 30,
+                    }}
                   >
-                    <Trash2 size={14} />
-                  </button>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: 1, minWidth: 200 }}>
+                      <Quote size={15} color="#22d3ee" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <div>
+                        <strong style={{ color: '#67e8f9', marginRight: 6 }}>Ví dụ:</strong>
+                        <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                          {vocab.exampleSentence}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handlePronounceExample(vocab.id, vocab.exampleSentence!)}
+                      disabled={isPlayingEx}
+                      style={{ padding: '3px 8px', fontSize: 11, gap: 4 }}
+                      title="Nghe phát âm câu ví dụ này"
+                    >
+                      <Volume2 size={12} />
+                      <span>{isPlayingEx ? 'Đang đọc...' : 'Nghe ví dụ'}</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Metadata footer */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-muted)', paddingLeft: 30, marginTop: 2 }}>
+                  <span>📅 {vocab.studyDate}</span>
+                  <span>•</span>
+                  <span>Đã nghe: <strong>{vocab.listenCount}</strong> lần</span>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Edit Vocabulary Modal */}
+      {editingVocab && (
+        <div className="modal-overlay" onClick={() => setEditingVocab(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 580 }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Edit3 size={18} color="var(--accent-primary)" />
+                <h3 style={{ fontSize: 16, fontWeight: 700 }}>Chỉnh Sửa Từ Vựng & Ví Dụ</h3>
+              </div>
+              <button className="btn btn-secondary btn-icon btn-sm" onClick={() => setEditingVocab(null)}>
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label className="input-label">Từ tiếng Anh (*):</label>
+                <input
+                  type="text"
+                  className="input-control"
+                  value={editWord}
+                  onChange={(e) => setEditWord(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <label className="input-label">Phiên âm IPA:</label>
+                  <input
+                    type="text"
+                    className="input-control"
+                    value={editPhonetic}
+                    onChange={(e) => setEditPhonetic(e.target.value)}
+                  />
+                </div>
+                <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <label className="input-label">Từ loại:</label>
+                  <input
+                    type="text"
+                    className="input-control"
+                    value={editPOS}
+                    onChange={(e) => setEditPOS(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label className="input-label">Nghĩa tiếng Việt (*):</label>
+                <input
+                  type="text"
+                  className="input-control"
+                  value={editMeaning}
+                  onChange={(e) => setEditMeaning(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label className="input-label">💡 Cách dùng / Cấu trúc (Usage / Collocation):</label>
+                <input
+                  type="text"
+                  className="input-control"
+                  placeholder="VD: abandon hope / ship; abandon sth to sb"
+                  value={editUsage}
+                  onChange={(e) => setEditUsage(e.target.value)}
+                />
+              </div>
+
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label className="input-label">📝 Ví dụ câu & dịch nghĩa (Example Sentence):</label>
+                <textarea
+                  className="textarea-control"
+                  style={{ minHeight: 70 }}
+                  placeholder="VD: They had to abandon the car in the snow. (Họ đã phải bỏ lại chiếc xe trong bão tuyết.)"
+                  value={editExample}
+                  onChange={(e) => setEditExample(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setEditingVocab(null)} disabled={isSavingEdit}>
+                Hủy
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveEdit} disabled={isSavingEdit}>
+                <Save size={14} />
+                <span>{isSavingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

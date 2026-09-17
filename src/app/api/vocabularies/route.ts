@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { word, phonetic, partOfSpeech, meaning, date } = body;
+    const { word, phonetic, partOfSpeech, meaning, usage, exampleSentence, date } = body;
 
     if (!word || !meaning) {
       return NextResponse.json(
@@ -36,6 +36,8 @@ export async function POST(request: NextRequest) {
       phonetic,
       partOfSpeech,
       meaning,
+      usage,
+      exampleSentence,
     });
 
     return NextResponse.json({ success: true, data: created });

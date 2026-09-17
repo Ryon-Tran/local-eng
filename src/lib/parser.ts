@@ -6,13 +6,10 @@ import { ParsedVocabItem, ParseError, ParseResult } from '@/types';
  * 
  * Supports:
  * - Word /IPA/ (POS): Meaning
- * - Word [IPA] (POS): Meaning
- * - Word (POS): Meaning (without IPA)
- * - Word /IPA/: Meaning (without POS)
+ * - Word /IPA/ (POS): Meaning | Usage: collocation | Ex: Example sentence
  * - Multi-word phrases: "According to /əˈkɔːrdɪŋ tuː/ (prep): Theo như"
  * - Multi-part-of-speech: "(n/v)", "(adj, adv)"
  * - Separators: ":", "-", "–", "—", or spaces
- * - Strips redundant whitespace
  * - Discards empty lines cleanly
  * - Returns precise errors with line number and reason for unparseable lines
  */
@@ -35,41 +32,53 @@ export function parseVocabularyText(rawText: string): ParseResult {
     let phonetic = '';
     let partOfSpeech = '';
     let meaning = '';
+    let usage = '';
+    let exampleSentence = '';
+
+    // Check if line contains additional metadata separated by |
+    // e.g. "Abandon /əˈbændən/ (v): Từ bỏ | Usage: abandon ship | Ex: They had to abandon the car."
+    let mainPart = trimmed;
+    if (trimmed.includes('|')) {
+      const parts = trimmed.split('|').map((p) => p.trim());
+      mainPart = parts[0];
+      for (let p = 1; p < parts.length; p++) {
+        const seg = parts[p];
+        if (/^(usage|cách dùng|collocation):/i.test(seg)) {
+          usage = seg.replace(/^(usage|cách dùng|collocation):\s*/i, '').trim();
+        } else if (/^(ex|example|ví dụ):/i.test(seg)) {
+          exampleSentence = seg.replace(/^(ex|example|ví dụ):\s*/i, '').trim();
+        }
+      }
+    }
 
     // Case 1: Has phonetic brackets /.../ or [...]
-    // Example: Abandon /əˈbændən/ (v): Từ bỏ
-    const phoneticMatch = trimmed.match(/^(.*?)\s*([/\[]([^/\]]+)[/\]])\s*(.*)$/);
+    const phoneticMatch = mainPart.match(/^(.*?)\s*([/\[]([^/\]]+)[/\]])\s*(.*)$/);
     if (phoneticMatch) {
       word = phoneticMatch[1].trim();
       phonetic = `/${phoneticMatch[3].trim()}/`;
       const remainder = phoneticMatch[4].trim();
 
-      // Check if remainder has (POS): Meaning
       const posMatch = remainder.match(/^\(([^)]+)\)\s*[:\-–—]?\s*(.*)$/);
       if (posMatch) {
         partOfSpeech = posMatch[1].trim();
         meaning = posMatch[2].trim();
       } else {
-        // No POS, could be: : Meaning or - Meaning or Meaning
         meaning = remainder.replace(/^[:\-–—]\s*/, '').trim();
       }
     } else {
       // Case 2: No phonetic, but has (POS)
-      // Example: Abandon (v): Từ bỏ
-      const posMatch = trimmed.match(/^(.*?)\s*\(([^)]+)\)\s*[:\-–—]?\s*(.*)$/);
+      const posMatch = mainPart.match(/^(.*?)\s*\(([^)]+)\)\s*[:\-–—]?\s*(.*)$/);
       if (posMatch) {
         word = posMatch[1].trim();
         partOfSpeech = posMatch[2].trim();
         meaning = posMatch[3].trim();
       } else {
         // Case 3: Split by separator : or -
-        // Example: Abandon: Từ bỏ
-        const sepMatch = trimmed.match(/^(.*?)\s*[:\-–—]\s*(.*)$/);
+        const sepMatch = mainPart.match(/^(.*?)\s*[:\-–—]\s*(.*)$/);
         if (sepMatch) {
           word = sepMatch[1].trim();
           meaning = sepMatch[2].trim();
         } else {
-          // Cannot parse
           errors.push({
             lineNumber,
             rawLine,
@@ -80,10 +89,8 @@ export function parseVocabularyText(rawText: string): ParseResult {
       }
     }
 
-    // Clean up word: remove trailing colons or punctuation if any
     word = word.replace(/[:\-–—]+$/, '').trim();
 
-    // Validate minimum requirements
     if (!word) {
       errors.push({
         lineNumber,
@@ -107,6 +114,8 @@ export function parseVocabularyText(rawText: string): ParseResult {
       phonetic,
       partOfSpeech,
       meaning,
+      usage: usage || undefined,
+      exampleSentence: exampleSentence || undefined,
       rawLine,
       lineNumber,
     });

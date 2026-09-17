@@ -13,7 +13,10 @@ import {
   Volume2,
   Headphones,
   Sparkles,
+  Lightbulb,
+  Quote,
 } from 'lucide-react';
+
 import { Vocabulary, StudyMode, UserSettings } from '@/types';
 import { speechEngine, FormattedVoice } from '@/lib/speech';
 import { ListenAndGuess } from './ListenAndGuess';
@@ -394,11 +397,12 @@ export const ListeningPlayer: React.FC<ListeningPlayerProps> = ({
                 )}
               </div>
 
+              {/* Meaning */}
               <p
                 style={{
-                  fontSize: 24,
+                  fontSize: 22,
                   color: '#cbd5e1',
-                  fontWeight: 500,
+                  fontWeight: 600,
                   maxWidth: 600,
                   margin: '0 auto',
                   lineHeight: 1.4,
@@ -407,8 +411,74 @@ export const ListeningPlayer: React.FC<ListeningPlayerProps> = ({
                 {currentVocab.meaning}
               </p>
 
+              {/* Usage / Collocation */}
+              {currentVocab.usage && (
+                <div
+                  style={{
+                    background: 'rgba(99, 102, 241, 0.12)',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    borderRadius: 12,
+                    padding: '12px 18px',
+                    maxWidth: 640,
+                    margin: '16px auto 0',
+                    textAlign: 'left',
+                    width: '100%',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#a5b4fc', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                    <Lightbulb size={15} />
+                    <span>CÁCH DÙNG / COLLOCATIONS:</span>
+                  </div>
+                  <div style={{ color: '#e2e8f0', fontSize: 14 }}>{currentVocab.usage}</div>
+                </div>
+              )}
+
+              {/* Example Sentence with Audio Button */}
+              {currentVocab.exampleSentence && (
+                <div
+                  style={{
+                    background: 'rgba(6, 182, 212, 0.1)',
+                    border: '1px solid rgba(6, 182, 212, 0.3)',
+                    borderRadius: 12,
+                    padding: '12px 18px',
+                    maxWidth: 640,
+                    margin: '12px auto 0',
+                    textAlign: 'left',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 220 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#67e8f9', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                      <Quote size={15} />
+                      <span>VÍ DỤ CÂU:</span>
+                    </div>
+                    <div style={{ color: '#f1f5f9', fontSize: 14, fontStyle: 'italic', lineHeight: 1.5 }}>
+                      {currentVocab.exampleSentence}
+                    </div>
+                  </div>
+
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      const enText = currentVocab.exampleSentence!.split('(')[0].trim() || currentVocab.exampleSentence!;
+                      speechEngine.speak(enText, { voiceURI: selectedVoice, rate: speed });
+                    }}
+                    title="Nghe phát âm câu ví dụ này"
+                    style={{ flexShrink: 0, gap: 6 }}
+                  >
+                    <Volume2 size={13} />
+                    <span>Nghe ví dụ</span>
+                  </button>
+                </div>
+              )}
+
               {mode === 'repeat' && (
-                <div style={{ marginTop: 20 }}>
+                <div style={{ marginTop: 18 }}>
                   <span className="badge badge-learning" style={{ fontSize: 13, padding: '6px 14px' }}>
                     Lặp lại: {currentRepeat} / {repeatCount}
                   </span>
