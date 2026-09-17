@@ -1,6 +1,18 @@
 'use client';
 
 import React from 'react';
+import {
+  Headphones,
+  LayoutDashboard,
+  Calendar,
+  BookOpen,
+  Radio,
+  Settings,
+  Plus,
+  Zap,
+  Moon,
+  Sun,
+} from 'lucide-react';
 
 interface NavbarProps {
   currentTab: string;
@@ -26,7 +38,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <div className="brand-icon">🎧</div>
+        <div className="brand-icon">
+          <Headphones size={22} strokeWidth={2.5} />
+        </div>
         <div>
           <div className="brand-title">VOCAL ENG</div>
           <span className="brand-badge">PRO LISTENING</span>
@@ -39,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => onSelectTab('dashboard')}
           id="nav-dashboard"
         >
-          <span className="nav-icon">📊</span>
+          <LayoutDashboard size={18} />
           <span>Tổng quan</span>
         </button>
 
@@ -48,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => onSelectTab('daily-lists')}
           id="nav-daily-lists"
         >
-          <span className="nav-icon">📅</span>
+          <Calendar size={18} />
           <span>Từ vựng theo ngày</span>
         </button>
 
@@ -57,7 +71,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => onSelectTab('all-vocab')}
           id="nav-all-vocab"
         >
-          <span className="nav-icon">📚</span>
+          <BookOpen size={18} />
           <span>Danh sách từ vựng</span>
         </button>
 
@@ -66,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => onSelectTab('listening-studio')}
           id="nav-listening-studio"
         >
-          <span className="nav-icon">🎧</span>
+          <Radio size={18} />
           <span>Phòng học nghe</span>
         </button>
 
@@ -75,7 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={onOpenSettings}
           id="nav-settings"
         >
-          <span className="nav-icon">⚙️</span>
+          <Settings size={18} />
           <span>Cài đặt</span>
         </button>
       </nav>
@@ -87,7 +101,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={onOpenImport}
           id="btn-open-import"
         >
-          <span>➕</span>
+          <Plus size={16} />
           <span>Thêm từ vựng</span>
         </button>
 
@@ -99,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           title="Nạp 20 từ mẫu để kiểm thử ngay"
           id="btn-quick-seed"
         >
-          <span>⚡</span>
+          <Zap size={14} />
           <span>{isSeeding ? 'Đang nạp...' : 'Nạp 20 từ mẫu'}</span>
         </button>
 
@@ -108,10 +122,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             className="btn btn-secondary btn-sm"
             onClick={onToggleTheme}
-            style={{ padding: '4px 10px' }}
+            style={{ padding: '4px 10px', gap: 6 }}
             id="btn-toggle-theme"
           >
-            {theme === 'dark' ? '🌙 Tối' : '☀️ Sáng'}
+            {theme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
+            <span>{theme === 'dark' ? 'Tối' : 'Sáng'}</span>
           </button>
         </div>
       </div>

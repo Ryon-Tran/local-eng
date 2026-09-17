@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { LayoutDashboard, Calendar, BookOpen, Radio, Settings } from 'lucide-react';
 
 interface MobileNavProps {
   currentTab: string;
@@ -20,7 +21,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
         onClick={() => onSelectTab('dashboard')}
         id="mobile-nav-dashboard"
       >
-        <span className="mobile-nav-icon">📊</span>
+        <LayoutDashboard size={20} />
         <span className="mobile-nav-label">Tổng quan</span>
       </button>
 
@@ -29,7 +30,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
         onClick={() => onSelectTab('daily-lists')}
         id="mobile-nav-daily-lists"
       >
-        <span className="mobile-nav-icon">📅</span>
+        <Calendar size={20} />
         <span className="mobile-nav-label">Theo ngày</span>
       </button>
 
@@ -38,7 +39,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
         onClick={() => onSelectTab('all-vocab')}
         id="mobile-nav-all-vocab"
       >
-        <span className="mobile-nav-icon">📚</span>
+        <BookOpen size={20} />
         <span className="mobile-nav-label">Từ vựng</span>
       </button>
 
@@ -47,7 +48,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
         onClick={() => onSelectTab('listening-studio')}
         id="mobile-nav-listening-studio"
       >
-        <span className="mobile-nav-icon">🎧</span>
+        <Radio size={20} />
         <span className="mobile-nav-label">Phòng nghe</span>
       </button>
 
@@ -56,7 +57,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
         onClick={onOpenSettings}
         id="mobile-nav-settings"
       >
-        <span className="mobile-nav-icon">⚙️</span>
+        <Settings size={20} />
         <span className="mobile-nav-label">Cài đặt</span>
       </button>
     </nav>
