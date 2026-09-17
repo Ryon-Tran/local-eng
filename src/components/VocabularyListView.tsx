@@ -328,17 +328,17 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                 }}
               >
                 {/* Left: Checkbox & Word Information */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1, minWidth: 260 }}>
+                <div className="vocab-card-main" style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 220 }}>
                   <input
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => handleToggleSelect(vocab.id)}
-                    style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    style={{ width: 20, height: 20, cursor: 'pointer', flexShrink: 0 }}
                     id={`check-vocab-${vocab.id}`}
                   />
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span className="vocab-word">{vocab.word}</span>
                       {vocab.phonetic && (
                         <span className="phonetic-tag">{vocab.phonetic}</span>
@@ -350,22 +350,16 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
 
                     <div className="vocab-meaning">{vocab.meaning}</div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
                       <span>📅 {vocab.studyDate}</span>
                       <span>•</span>
                       <span>Đã nghe: <strong>{vocab.listenCount}</strong> lần</span>
-                      {vocab.lastListenedAt && (
-                        <>
-                          <span>•</span>
-                          <span>Lần cuối: {new Date(vocab.lastListenedAt).toLocaleDateString('vi-VN')}</span>
-                        </>
-                      )}
                     </div>
                   </div>
                 </div>
 
                 {/* Right: Actions & Status */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className="vocab-card-actions" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   {/* Single Pronounce Button */}
                   <button
                     className={`btn ${isPlaying ? 'btn-primary' : 'btn-secondary'} btn-sm`}
@@ -377,12 +371,12 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                     <span>{isPlaying ? '🔊 ...' : '🔊 Nghe'}</span>
                   </button>
 
-                  {/* Status Toggle Dropdown / Button */}
+                  {/* Status Toggle Dropdown */}
                   <select
                     className="select-control"
                     style={{
                       width: 'auto',
-                      padding: '5px 10px',
+                      padding: '6px 10px',
                       fontSize: 12,
                       fontWeight: 600,
                       background:
@@ -417,6 +411,7 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                     ✕
                   </button>
                 </div>
+
               </div>
             );
           })}

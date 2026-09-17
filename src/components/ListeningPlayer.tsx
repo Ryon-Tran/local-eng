@@ -478,38 +478,60 @@ export const ListeningPlayer: React.FC<ListeningPlayerProps> = ({
   // Render Bottom Sticky Player Bar
   return (
     <div className="sticky-player" id="sticky-listening-player">
-      {/* Word Info */}
-      <div className="player-info">
-        {isPlaying && (
-          <div className="sound-wave">
-            <span className="wave-bar" />
-            <span className="wave-bar" />
-            <span className="wave-bar" />
+      {/* Top Row / Desktop Left: Word Info & Fast Controls */}
+      <div className="player-info" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {isPlaying && (
+            <div className="sound-wave">
+              <span className="wave-bar" />
+              <span className="wave-bar" />
+              <span className="wave-bar" />
+            </div>
+          )}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span className="player-word">{currentVocab.word}</span>
+              {currentVocab.phonetic && (
+                <span className="phonetic-tag" style={{ fontSize: 11, padding: '1px 6px' }}>
+                  {currentVocab.phonetic}
+                </span>
+              )}
+              {currentVocab.partOfSpeech && (
+                <span className="badge-pos" style={{ fontSize: 10, padding: '1px 5px' }}>
+                  ({currentVocab.partOfSpeech})
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentVocab.meaning}
+            </div>
           </div>
-        )}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="player-word">{currentVocab.word}</span>
-            {currentVocab.phonetic && (
-              <span className="phonetic-tag" style={{ fontSize: 11 }}>
-                {currentVocab.phonetic}
-              </span>
-            )}
-            {currentVocab.partOfSpeech && (
-              <span className="badge-pos" style={{ fontSize: 10 }}>
-                ({currentVocab.partOfSpeech})
-              </span>
-            )}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {currentVocab.meaning}
-          </div>
+        </div>
+
+        {/* Mobile Quick Action Buttons (Fullscreen & Close) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            className="btn btn-secondary btn-icon btn-sm"
+            onClick={() => setIsFullscreen(true)}
+            title="Toàn màn hình"
+            id="player-fullscreen-btn"
+          >
+            ⛶
+          </button>
+          <button
+            className="btn btn-secondary btn-icon btn-sm"
+            onClick={onClose}
+            title="Đóng"
+            id="player-close-btn"
+          >
+            ✕
+          </button>
         </div>
       </div>
 
       {/* Center Controls & Progress */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1, maxWidth: 440 }}>
-        <div className="player-controls">
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1, maxWidth: 440, width: '100%' }}>
+        <div className="player-controls" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
           <button
             className="player-btn"
             onClick={handlePrev}
@@ -550,7 +572,7 @@ export const ListeningPlayer: React.FC<ListeningPlayerProps> = ({
           <div className="progress-bar-bg">
             <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }} />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
             <span>
               Từ <strong>{currentIndex + 1}</strong> / {queue.length}
             </span>
@@ -560,12 +582,11 @@ export const ListeningPlayer: React.FC<ListeningPlayerProps> = ({
         </div>
       </div>
 
-      {/* Right Actions: Mode, Speed, Fullscreen, Close */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {/* Speed Selector */}
+      {/* Settings Row (Speed & Mode) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
         <select
           className="select-control"
-          style={{ width: 'auto', padding: '6px 10px', fontSize: 12 }}
+          style={{ width: 'auto', padding: '5px 8px', fontSize: 12 }}
           value={speed}
           onChange={(e) => setSpeed(Number(e.target.value))}
           title="Tốc độ đọc"
@@ -576,10 +597,9 @@ export const ListeningPlayer: React.FC<ListeningPlayerProps> = ({
           <option value={1.5}>1.5x</option>
         </select>
 
-        {/* Mode Selector */}
         <select
           className="select-control"
-          style={{ width: 'auto', padding: '6px 10px', fontSize: 12 }}
+          style={{ width: 'auto', padding: '5px 8px', fontSize: 12 }}
           value={mode}
           onChange={(e) => {
             stopPlayback();
@@ -592,27 +612,8 @@ export const ListeningPlayer: React.FC<ListeningPlayerProps> = ({
           <option value="repeat">Mode 3: Lặp lại</option>
           <option value="guess">Mode 2: Nghe & đoán</option>
         </select>
-
-        {/* Fullscreen Button */}
-        <button
-          className="btn btn-secondary btn-icon"
-          onClick={() => setIsFullscreen(true)}
-          title="Toàn màn hình (Fullscreen)"
-          id="player-fullscreen-btn"
-        >
-          ⛶
-        </button>
-
-        {/* Close Button */}
-        <button
-          className="btn btn-secondary btn-icon"
-          onClick={onClose}
-          title="Đóng trình phát"
-          id="player-close-btn"
-        >
-          ✕
-        </button>
       </div>
     </div>
   );
+
 };

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from '@/components/Navbar';
+import { MobileNav } from '@/components/MobileNav';
+import { InstallPrompt } from '@/components/InstallPrompt';
 import { DashboardView } from '@/components/DashboardView';
 import { DailyListsView } from '@/components/DailyListsView';
 import { VocabularyListView } from '@/components/VocabularyListView';
@@ -144,7 +146,6 @@ export default function Home() {
         setVocabularies((prev) =>
           prev.map((v) => (v.id === id ? { ...v, status: newStatus } : v))
         );
-        // Refresh stats silently
         fetch('/api/statistics')
           .then((r) => r.json())
           .then((d) => d.success && setStats(d.data));
@@ -191,7 +192,7 @@ export default function Home() {
 
   return (
     <div className="app-container">
-      {/* Sidebar Navigation */}
+      {/* Desktop Sidebar Navigation */}
       <Navbar
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
@@ -207,34 +208,50 @@ export default function Home() {
       <main className="main-wrapper">
         {/* Top bar header */}
         <header className="top-bar">
-          <div className="top-bar-title">
-            <h1>VOCAL LISTENING 🎧</h1>
-            <p>Học phát âm & ghi nhớ từ vựng tiếng Anh theo ngày</p>
+          <div className="top-bar-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 24 }}>🎧</span>
+            <div>
+              <h1>VOCAL ENG</h1>
+              <p>Học phát âm & ghi nhớ từ vựng tiếng Anh theo ngày</p>
+            </div>
           </div>
 
           <div className="top-bar-actions">
             <button
               className="btn btn-secondary btn-sm"
+              onClick={handleToggleTheme}
+              title="Đổi giao diện"
+              style={{ padding: '6px 10px' }}
+            >
+              {theme === 'dark' ? '🌙' : '☀️'}
+            </button>
+            <button
+              className="btn btn-secondary btn-sm"
               onClick={fetchData}
               title="Làm mới dữ liệu"
+              style={{ padding: '6px 10px' }}
             >
-              🔄 Làm mới
+              🔄
             </button>
             <button
               className="btn btn-primary btn-sm"
               onClick={() => handleOpenImportForDate()}
             >
-              ➕ Thêm từ vựng
+              <span>➕</span>
+              <span className="hide-on-mobile">Thêm từ</span>
             </button>
           </div>
         </header>
 
         {/* Content Body */}
         <div className="content-body">
+          {/* PWA Install Prompt Banner */}
+          <InstallPrompt />
+
           {isLoading ? (
             <div style={{ textAlign: 'center', padding: '100px 0' }}>
               <div style={{ fontSize: 36, marginBottom: 16 }}>🎧</div>
-              <p style={{ color: 'var(--text-secondary)' }}>Đang tải dữ liệu từ vựng...</p>
+              <p style={{ color: 'var(--text-secondary)' }}>Đang kết nối PostgreSQL & tải dữ liệu...</p>
             </div>
           ) : (
             <>
@@ -275,7 +292,7 @@ export default function Home() {
                 <div>
                   <div style={{ marginBottom: 20 }}>
                     <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 24, fontWeight: 800 }}>
-                      🎧 PHÒNG HỌC NGHE (LISTENING STUDIO)
+                      🎧 PHÒNG HỌC NGHE
                     </h2>
                     <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
                       Chọn từ vựng để bắt đầu các chế độ học nghe chuyên sâu
@@ -283,45 +300,44 @@ export default function Home() {
                   </div>
 
                   {listeningQueue.length === 0 ? (
-                    <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
-                      <div style={{ fontSize: 48, marginBottom: 16 }}>🎧</div>
+                    <div className="card" style={{ textAlign: 'center', padding: '48px 20px' }}>
+                      <div style={{ fontSize: 44, marginBottom: 16 }}>🎧</div>
                       <h3 style={{ fontSize: 18, marginBottom: 8 }}>Chưa chọn từ vựng nào để nghe</h3>
-                      <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>
+                      <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: 14 }}>
                         Hãy chọn từ trong danh sách hoặc nghe danh sách từ của ngày hôm nay.
                       </p>
-                      <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
                         {days[0] && (
                           <button
                             className="btn btn-primary"
                             onClick={() => handleStudyDay(days[0].date, 'continuous')}
                           >
-                            Nghe từ vựng ngày gần nhất ({days[0].date})
+                            Nghe ngày {days[0].date} ({days[0].totalCount} từ)
                           </button>
                         )}
                         <button
                           className="btn btn-secondary"
                           onClick={() => setCurrentTab('all-vocab')}
                         >
-                          Chọn từ vựng thủ công
+                          Chọn từ trong danh sách
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="card" style={{ padding: 24 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                    <div className="card" style={{ padding: 20 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
                         <div>
                           <strong style={{ fontSize: 16 }}>
                             Đang mở phòng nghe với {listeningQueue.length} từ vựng
                           </strong>
                           <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                            Trình phát đang hiển thị ở thanh cố định bên dưới hoặc mở chế độ Toàn màn hình
+                            Trình phát đang hiển thị ở thanh cố định bên dưới
                           </div>
                         </div>
 
                         <button
-                          className="btn btn-primary"
+                          className="btn btn-primary btn-sm"
                           onClick={() => {
-                            // Find player and open fullscreen
                             const btn = document.getElementById('player-fullscreen-btn');
                             btn?.click();
                           }}
@@ -338,7 +354,14 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Sticky Listening Player Bar (shows whenever listeningQueue has words) */}
+      {/* Mobile Bottom Navigation */}
+      <MobileNav
+        currentTab={currentTab}
+        onSelectTab={setCurrentTab}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+
+      {/* Sticky Listening Player Bar */}
       {listeningQueue.length > 0 && (
         <ListeningPlayer
           queue={listeningQueue}
