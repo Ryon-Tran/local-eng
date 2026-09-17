@@ -14,10 +14,10 @@ export async function POST(request: NextRequest) {
     const parseResult = parseVocabularyText(text);
 
     // Check duplicate info for each parsed word
-    const words = parseResult.items.map(item => item.word);
-    const duplicates = findDuplicates(words);
+    const words = parseResult.items.map((item) => item.word);
+    const duplicates = await findDuplicates(words);
 
-    const enrichedItems = parseResult.items.map(item => {
+    const enrichedItems = parseResult.items.map((item) => {
       const dup = duplicates[item.word.trim().toLowerCase()];
       return {
         ...item,
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
         errors: parseResult.errors,
         totalLines: parseResult.totalLines,
         validCount: parseResult.validCount,
-        duplicateCount: enrichedItems.filter(i => i.duplicateInfo?.exists).length,
+        duplicateCount: enrichedItems.filter((i) => i.duplicateInfo?.exists).length,
       },
     });
   } catch (error: any) {

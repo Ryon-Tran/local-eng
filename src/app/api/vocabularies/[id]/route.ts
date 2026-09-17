@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const vocab = getVocabularyById(id);
+    const vocab = await getVocabularyById(id);
     if (!vocab) {
       return NextResponse.json({ success: false, error: 'Không tìm thấy từ vựng' }, { status: 404 });
     }
@@ -25,7 +25,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const updated = updateVocabulary(id, body);
+    const updated = await updateVocabulary(id, body);
     if (!updated) {
       return NextResponse.json({ success: false, error: 'Không tìm thấy từ vựng' }, { status: 404 });
     }
@@ -42,7 +42,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const ok = deleteVocabulary(id);
+    const ok = await deleteVocabulary(id);
     if (!ok) {
       return NextResponse.json({ success: false, error: 'Không tìm thấy từ vựng' }, { status: 404 });
     }

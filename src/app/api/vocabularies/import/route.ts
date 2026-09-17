@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = importVocabularies(date, items);
+    const result = await importVocabularies(date, items);
     return NextResponse.json({
       success: true,
       data: result,

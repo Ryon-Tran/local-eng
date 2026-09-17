@@ -7,7 +7,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const result = incrementListenCount(id);
+    const result = await incrementListenCount(id);
     if (!result) {
       return NextResponse.json({ success: false, error: 'Không tìm thấy từ vựng' }, { status: 404 });
     }

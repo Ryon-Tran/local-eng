@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || undefined;
     const search = searchParams.get('search') || undefined;
 
-    const items = getVocabularies({ dayId, date, status, search });
+    const items = await getVocabularies({ dayId, date, status, search });
     return NextResponse.json({ success: true, data: items });
   } catch (error: any) {
     console.error('Error getting vocabularies:', error);
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     const targetDate = date || new Date().toISOString().split('T')[0];
-    const created = createVocabulary({
+    const created = await createVocabulary({
       date: targetDate,
       word,
       phonetic,

@@ -3,7 +3,7 @@ import { getDaysWithStats } from '@/lib/db';
 
 export async function GET() {
   try {
-    const days = getDaysWithStats();
+    const days = await getDaysWithStats();
     return NextResponse.json({ success: true, data: days });
   } catch (error: any) {
     console.error('Error fetching vocabulary days:', error);

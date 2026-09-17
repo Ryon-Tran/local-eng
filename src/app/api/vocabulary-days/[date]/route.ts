@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { date } = await params;
-    const day = getDayByDate(date);
+    const day = await getDayByDate(date);
     if (!day) {
       return NextResponse.json({ success: false, error: 'Không tìm thấy ngày học này' }, { status: 404 });
     }

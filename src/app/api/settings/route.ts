@@ -3,7 +3,7 @@ import { getUserSettings, updateUserSettings } from '@/lib/db';
 
 export async function GET() {
   try {
-    const settings = getUserSettings();
+    const settings = await getUserSettings();
     return NextResponse.json({ success: true, data: settings });
   } catch (error: any) {
     console.error('Error getting user settings:', error);
@@ -14,7 +14,7 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const updated = updateUserSettings(body);
+    const updated = await updateUserSettings(body);
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
     console.error('Error updating user settings:', error);

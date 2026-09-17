@@ -14,12 +14,12 @@ export async function PUT(
       return NextResponse.json({ success: false, error: 'Trạng thái không hợp lệ' }, { status: 400 });
     }
 
-    const ok = updateVocabularyStatus(id, status);
+    const ok = await updateVocabularyStatus(id, status);
     if (!ok) {
       return NextResponse.json({ success: false, error: 'Không tìm thấy từ vựng' }, { status: 404 });
     }
 
-    const updated = getVocabularyById(id);
+    const updated = await getVocabularyById(id);
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
     console.error('Error updating vocabulary status:', error);

@@ -3,7 +3,7 @@ import { getStatistics } from '@/lib/db';
 
 export async function GET() {
   try {
-    const stats = getStatistics();
+    const stats = await getStatistics();
     return NextResponse.json({ success: true, data: stats });
   } catch (error: any) {
     console.error('Error getting statistics:', error);

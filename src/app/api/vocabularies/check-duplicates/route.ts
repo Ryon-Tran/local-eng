@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'words phải là một mảng chuỗi' }, { status: 400 });
     }
 
-    const duplicates = findDuplicates(words);
+    const duplicates = await findDuplicates(words);
     return NextResponse.json({ success: true, data: duplicates });
   } catch (error: any) {
     console.error('Error checking duplicates:', error);

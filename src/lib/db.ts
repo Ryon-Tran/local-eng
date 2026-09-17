@@ -1,52 +1,51 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
+import { Pool } from 'pg';
 import { Vocabulary, VocabularyDay, UserSettings, StatisticsData, ConflictResolution } from '@/types';
 import { SEED_VOCABULARIES } from './seed';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'vocab.db');
+const connectionString =
+  process.env.DATABASE_URL ||
+  'postgresql://neondb_owner:npg_0NfvBHSXDru8@ep-rapid-thunder-aio4c6y7-pooler.c-4.us-east-1.aws.neon.tech/local_eng?sslmode=require';
 
-let dbInstance: Database.Database | null = null;
+let pool: Pool | null = null;
+let isInitialized = false;
 
-export function getDb(): Database.Database {
-  if (dbInstance) {
-    return dbInstance;
+export function getPool(): Pool {
+  if (!pool) {
+    pool = new Pool({
+      connectionString,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+      max: 10,
+      idleTimeoutMillis: 30000,
+    });
   }
-
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-
-  dbInstance = new Database(DB_PATH);
-  dbInstance.pragma('journal_mode = WAL');
-  dbInstance.pragma('foreign_keys = ON');
-
-  initSchema(dbInstance);
-  return dbInstance;
+  return pool;
 }
 
-function initSchema(db: Database.Database) {
-  db.exec(`
+export async function initDb(): Promise<void> {
+  if (isInitialized) return;
+  const p = getPool();
+
+  await p.query(`
     CREATE TABLE IF NOT EXISTS vocabulary_days (
-      id TEXT PRIMARY KEY,
-      date TEXT UNIQUE NOT NULL,
-      created_at TEXT NOT NULL
+      id VARCHAR(100) PRIMARY KEY,
+      date VARCHAR(20) UNIQUE NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS vocabularies (
-      id TEXT PRIMARY KEY,
-      day_id TEXT NOT NULL,
-      word TEXT NOT NULL,
-      phonetic TEXT,
-      part_of_speech TEXT,
+      id VARCHAR(100) PRIMARY KEY,
+      day_id VARCHAR(100) NOT NULL REFERENCES vocabulary_days(id) ON DELETE CASCADE,
+      word VARCHAR(255) NOT NULL,
+      phonetic VARCHAR(255),
+      part_of_speech VARCHAR(100),
       meaning TEXT NOT NULL,
-      status TEXT DEFAULT 'NEW',
-      listen_count INTEGER DEFAULT 0,
-      last_listened_at TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (day_id) REFERENCES vocabulary_days(id) ON DELETE CASCADE
+      status VARCHAR(50) DEFAULT 'NEW',
+      listen_count INT DEFAULT 0,
+      last_listened_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE INDEX IF NOT EXISTS idx_vocab_day_id ON vocabularies(day_id);
@@ -55,138 +54,139 @@ function initSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_vocab_days_date ON vocabulary_days(date);
 
     CREATE TABLE IF NOT EXISTS user_settings (
-      id TEXT PRIMARY KEY,
-      voice TEXT DEFAULT '',
+      id VARCHAR(50) PRIMARY KEY DEFAULT 'default',
+      voice VARCHAR(255) DEFAULT '',
       speed REAL DEFAULT 1.0,
       pitch REAL DEFAULT 1.0,
       volume REAL DEFAULT 1.0,
-      repeat_count INTEGER DEFAULT 2,
-      pause_between_words INTEGER DEFAULT 2,
-      auto_mark_listened INTEGER DEFAULT 1,
-      auto_mark_learned INTEGER DEFAULT 0,
-      theme TEXT DEFAULT 'dark'
+      repeat_count INT DEFAULT 2,
+      pause_between_words INT DEFAULT 2,
+      auto_mark_listened BOOLEAN DEFAULT TRUE,
+      auto_mark_learned BOOLEAN DEFAULT FALSE,
+      theme VARCHAR(50) DEFAULT 'dark'
     );
   `);
 
-  // Ensure default settings exist
-  const settingsRow = db.prepare('SELECT id FROM user_settings WHERE id = ?').get('default');
-  if (!settingsRow) {
-    db.prepare(`
+  // Ensure default user settings
+  const settingsRes = await p.query('SELECT id FROM user_settings WHERE id = $1', ['default']);
+  if (settingsRes.rows.length === 0) {
+    await p.query(`
       INSERT INTO user_settings (id, voice, speed, pitch, volume, repeat_count, pause_between_words, auto_mark_listened, auto_mark_learned, theme)
-      VALUES ('default', '', 1.0, 1.0, 1.0, 2, 2, 1, 0, 'dark')
-    `).run();
+      VALUES ('default', '', 1.0, 1.0, 1.0, 2, 2, TRUE, FALSE, 'dark')
+    `);
   }
 
-  // Check if DB is empty, auto-seed 20 words for today
-  const dayCount = db.prepare('SELECT COUNT(*) as count FROM vocabulary_days').get() as { count: number };
-  if (dayCount.count === 0) {
-    seedInitialData(db);
+  // Auto seed 20 words if database has 0 days
+  const countRes = await p.query('SELECT COUNT(*) as count FROM vocabulary_days');
+  if (parseInt(countRes.rows[0].count, 10) === 0) {
+    await seedInitialData();
   }
+
+  isInitialized = true;
 }
 
-export function seedInitialData(db: Database.Database = getDb()) {
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+export async function seedInitialData(): Promise<void> {
+  const p = getPool();
+  const today = new Date().toISOString().split('T')[0];
   const dayId = `day_${today}`;
-  const now = new Date().toISOString();
 
-  const insertDay = db.prepare(`
-    INSERT OR IGNORE INTO vocabulary_days (id, date, created_at)
-    VALUES (?, ?, ?)
-  `);
-  insertDay.run(dayId, today, now);
+  await p.query(
+    `INSERT INTO vocabulary_days (id, date) VALUES ($1, $2) ON CONFLICT (date) DO NOTHING`,
+    [dayId, today]
+  );
 
-  const insertVocab = db.prepare(`
-    INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, status, listen_count, last_listened_at, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, 'NEW', 0, NULL, ?, ?)
-  `);
-
-  const tx = db.transaction(() => {
-    for (let i = 0; i < SEED_VOCABULARIES.length; i++) {
-      const item = SEED_VOCABULARIES[i];
-      const id = `vocab_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`;
-      insertVocab.run(id, dayId, item.word, item.phonetic, item.partOfSpeech, item.meaning, now, now);
-    }
-  });
-
-  tx();
+  for (let i = 0; i < SEED_VOCABULARIES.length; i++) {
+    const item = SEED_VOCABULARIES[i];
+    const id = `vocab_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`;
+    await p.query(
+      `INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, status, listen_count)
+       VALUES ($1, $2, $3, $4, $5, $6, 'NEW', 0)`,
+      [id, dayId, item.word, item.phonetic, item.partOfSpeech, item.meaning]
+    );
+  }
 }
 
-export function getDaysWithStats(): VocabularyDay[] {
-  const db = getDb();
-  const rows = db.prepare(`
+export async function getDaysWithStats(): Promise<VocabularyDay[]> {
+  await initDb();
+  const p = getPool();
+  const res = await p.query(`
     SELECT 
       d.id,
       d.date,
-      d.created_at as createdAt,
-      COUNT(v.id) as totalCount,
-      SUM(CASE WHEN v.status = 'NEW' THEN 1 ELSE 0 END) as newCount,
-      SUM(CASE WHEN v.status = 'LEARNING' THEN 1 ELSE 0 END) as learningCount,
-      SUM(CASE WHEN v.status = 'LEARNED' THEN 1 ELSE 0 END) as learnedCount,
-      SUM(v.listen_count) as totalListens
+      d.created_at as "createdAt",
+      COUNT(v.id) as "totalCount",
+      SUM(CASE WHEN v.status = 'NEW' THEN 1 ELSE 0 END) as "newCount",
+      SUM(CASE WHEN v.status = 'LEARNING' THEN 1 ELSE 0 END) as "learningCount",
+      SUM(CASE WHEN v.status = 'LEARNED' THEN 1 ELSE 0 END) as "learnedCount",
+      COALESCE(SUM(v.listen_count), 0) as "totalListens"
     FROM vocabulary_days d
     LEFT JOIN vocabularies v ON d.id = v.day_id
-    GROUP BY d.id
+    GROUP BY d.id, d.date, d.created_at
     ORDER BY d.date DESC
-  `).all() as any[];
+  `);
 
-  return rows.map(r => ({
+  return res.rows.map((r) => ({
     id: r.id,
     date: r.date,
-    createdAt: r.createdAt,
-    totalCount: Number(r.totalCount || 0),
-    newCount: Number(r.newCount || 0),
-    learningCount: Number(r.learningCount || 0),
-    learnedCount: Number(r.learnedCount || 0),
-    totalListens: Number(r.totalListens || 0),
+    createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+    totalCount: parseInt(r.totalCount, 10) || 0,
+    newCount: parseInt(r.newCount, 10) || 0,
+    learningCount: parseInt(r.learningCount, 10) || 0,
+    learnedCount: parseInt(r.learnedCount, 10) || 0,
+    totalListens: parseInt(r.totalListens, 10) || 0,
   }));
 }
 
-export function getDayByDate(date: string) {
-  const db = getDb();
-  const day = db.prepare('SELECT id, date, created_at as createdAt FROM vocabulary_days WHERE date = ?').get(date) as any;
-  if (!day) return null;
+export async function getDayByDate(date: string) {
+  await initDb();
+  const p = getPool();
+  const dayRes = await p.query('SELECT id, date, created_at as "createdAt" FROM vocabulary_days WHERE date = $1', [date]);
+  if (dayRes.rows.length === 0) return null;
 
-  const vocabs = db.prepare(`
-    SELECT 
-      id, day_id as dayId, word, phonetic, part_of_speech as partOfSpeech,
-      meaning, status, listen_count as listenCount, last_listened_at as lastListenedAt,
-      created_at as createdAt, updated_at as updatedAt
-    FROM vocabularies
-    WHERE day_id = ?
-    ORDER BY created_at ASC
-  `).all(day.id) as Vocabulary[];
+  const day = dayRes.rows[0];
+  const vocabsRes = await p.query(
+    `SELECT 
+       id, day_id as "dayId", word, phonetic, part_of_speech as "partOfSpeech",
+       meaning, status, listen_count as "listenCount", last_listened_at as "lastListenedAt",
+       created_at as "createdAt", updated_at as "updatedAt"
+     FROM vocabularies
+     WHERE day_id = $1
+     ORDER BY created_at ASC`,
+    [day.id]
+  );
 
   return {
     ...day,
-    vocabularies: vocabs,
+    vocabularies: vocabsRes.rows,
   };
 }
 
-export function getOrCreateDay(date: string): string {
-  const db = getDb();
-  const existing = db.prepare('SELECT id FROM vocabulary_days WHERE date = ?').get(date) as { id: string } | undefined;
-  if (existing) {
-    return existing.id;
+export async function getOrCreateDay(date: string): Promise<string> {
+  await initDb();
+  const p = getPool();
+  const existing = await p.query('SELECT id FROM vocabulary_days WHERE date = $1', [date]);
+  if (existing.rows.length > 0) {
+    return existing.rows[0].id;
   }
 
   const id = `day_${date}`;
-  const now = new Date().toISOString();
-  db.prepare('INSERT INTO vocabulary_days (id, date, created_at) VALUES (?, ?, ?)').run(id, date, now);
+  await p.query('INSERT INTO vocabulary_days (id, date) VALUES ($1, $2)', [id, date]);
   return id;
 }
 
-export function getVocabularies(filters?: {
+export async function getVocabularies(filters?: {
   dayId?: string;
   date?: string;
   status?: string;
   search?: string;
-}): Vocabulary[] {
-  const db = getDb();
+}): Promise<Vocabulary[]> {
+  await initDb();
+  const p = getPool();
   let sql = `
     SELECT 
-      v.id, v.day_id as dayId, v.word, v.phonetic, v.part_of_speech as partOfSpeech,
-      v.meaning, v.status, v.listen_count as listenCount, v.last_listened_at as lastListenedAt,
-      v.created_at as createdAt, v.updated_at as updatedAt, d.date as studyDate
+      v.id, v.day_id as "dayId", v.word, v.phonetic, v.part_of_speech as "partOfSpeech",
+      v.meaning, v.status, v.listen_count as "listenCount", v.last_listened_at as "lastListenedAt",
+      v.created_at as "createdAt", v.updated_at as "updatedAt", d.date as "studyDate"
     FROM vocabularies v
     JOIN vocabulary_days d ON v.day_id = d.id
     WHERE 1=1
@@ -194,157 +194,170 @@ export function getVocabularies(filters?: {
   const params: any[] = [];
 
   if (filters?.dayId) {
-    sql += ` AND v.day_id = ?`;
     params.push(filters.dayId);
+    sql += ` AND v.day_id = $${params.length}`;
   }
 
   if (filters?.date) {
-    sql += ` AND d.date = ?`;
     params.push(filters.date);
+    sql += ` AND d.date = $${params.length}`;
   }
 
   if (filters?.status && filters.status !== 'ALL') {
-    sql += ` AND v.status = ?`;
     params.push(filters.status);
+    sql += ` AND v.status = $${params.length}`;
   }
 
   if (filters?.search && filters.search.trim()) {
-    const s = `%${filters.search.trim().toLowerCase()}%`;
-    sql += ` AND (LOWER(v.word) LIKE ? OR LOWER(v.meaning) LIKE ? OR LOWER(v.phonetic) LIKE ?)`;
-    params.push(s, s, s);
+    params.push(`%${filters.search.trim().toLowerCase()}%`);
+    sql += ` AND (LOWER(v.word) LIKE $${params.length} OR LOWER(v.meaning) LIKE $${params.length} OR LOWER(v.phonetic) LIKE $${params.length})`;
   }
 
   sql += ` ORDER BY d.date DESC, v.created_at ASC`;
 
-  return db.prepare(sql).all(...params) as Vocabulary[];
+  const res = await p.query(sql, params);
+  return res.rows.map((r) => ({
+    ...r,
+    createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : '',
+    updatedAt: r.updatedAt ? new Date(r.updatedAt).toISOString() : '',
+    lastListenedAt: r.lastListenedAt ? new Date(r.lastListenedAt).toISOString() : null,
+  }));
 }
 
-export function getVocabularyById(id: string): Vocabulary | null {
-  const db = getDb();
-  const row = db.prepare(`
-    SELECT 
-      v.id, v.day_id as dayId, v.word, v.phonetic, v.part_of_speech as partOfSpeech,
-      v.meaning, v.status, v.listen_count as listenCount, v.last_listened_at as lastListenedAt,
-      v.created_at as createdAt, v.updated_at as updatedAt, d.date as studyDate
-    FROM vocabularies v
-    JOIN vocabulary_days d ON v.day_id = d.id
-    WHERE v.id = ?
-  `).get(id) as Vocabulary | undefined;
-
-  return row || null;
+export async function getVocabularyById(id: string): Promise<Vocabulary | null> {
+  await initDb();
+  const p = getPool();
+  const res = await p.query(
+    `SELECT 
+       v.id, v.day_id as "dayId", v.word, v.phonetic, v.part_of_speech as "partOfSpeech",
+       v.meaning, v.status, v.listen_count as "listenCount", v.last_listened_at as "lastListenedAt",
+       v.created_at as "createdAt", v.updated_at as "updatedAt", d.date as "studyDate"
+     FROM vocabularies v
+     JOIN vocabulary_days d ON v.day_id = d.id
+     WHERE v.id = $1`,
+    [id]
+  );
+  return res.rows[0] || null;
 }
 
-export function createVocabulary(data: {
+export async function createVocabulary(data: {
   date: string;
   word: string;
   phonetic?: string;
   partOfSpeech?: string;
   meaning: string;
-}): Vocabulary {
-  const db = getDb();
-  const dayId = getOrCreateDay(data.date);
+}): Promise<Vocabulary> {
+  await initDb();
+  const p = getPool();
+  const dayId = await getOrCreateDay(data.date);
   const id = `vocab_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-  const now = new Date().toISOString();
 
-  db.prepare(`
-    INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, status, listen_count, last_listened_at, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, 'NEW', 0, NULL, ?, ?)
-  `).run(id, dayId, data.word.trim(), data.phonetic?.trim() || '', data.partOfSpeech?.trim() || '', data.meaning.trim(), now, now);
+  await p.query(
+    `INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, status, listen_count)
+     VALUES ($1, $2, $3, $4, $5, $6, 'NEW', 0)`,
+    [id, dayId, data.word.trim(), data.phonetic?.trim() || '', data.partOfSpeech?.trim() || '', data.meaning.trim()]
+  );
 
-  return getVocabularyById(id)!;
+  return (await getVocabularyById(id))!;
 }
 
-export function updateVocabulary(id: string, data: Partial<{
-  word: string;
-  phonetic: string;
-  partOfSpeech: string;
-  meaning: string;
-  status: string;
-}>): Vocabulary | null {
-  const db = getDb();
+export async function updateVocabulary(
+  id: string,
+  data: Partial<{
+    word: string;
+    phonetic: string;
+    partOfSpeech: string;
+    meaning: string;
+    status: string;
+  }>
+): Promise<Vocabulary | null> {
+  await initDb();
+  const p = getPool();
   const updates: string[] = [];
   const params: any[] = [];
 
   if (data.word !== undefined) {
-    updates.push('word = ?');
     params.push(data.word.trim());
+    updates.push(`word = $${params.length}`);
   }
   if (data.phonetic !== undefined) {
-    updates.push('phonetic = ?');
     params.push(data.phonetic.trim());
+    updates.push(`phonetic = $${params.length}`);
   }
   if (data.partOfSpeech !== undefined) {
-    updates.push('part_of_speech = ?');
     params.push(data.partOfSpeech.trim());
+    updates.push(`part_of_speech = $${params.length}`);
   }
   if (data.meaning !== undefined) {
-    updates.push('meaning = ?');
     params.push(data.meaning.trim());
+    updates.push(`meaning = $${params.length}`);
   }
   if (data.status !== undefined) {
-    updates.push('status = ?');
     params.push(data.status);
+    updates.push(`status = $${params.length}`);
   }
 
   if (updates.length === 0) {
     return getVocabularyById(id);
   }
 
-  updates.push('updated_at = ?');
-  params.push(new Date().toISOString());
+  updates.push(`updated_at = NOW()`);
   params.push(id);
 
-  db.prepare(`UPDATE vocabularies SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  await p.query(`UPDATE vocabularies SET ${updates.join(', ')} WHERE id = $${params.length}`, params);
   return getVocabularyById(id);
 }
 
-export function deleteVocabulary(id: string): boolean {
-  const db = getDb();
-  const res = db.prepare('DELETE FROM vocabularies WHERE id = ?').run(id);
-  return res.changes > 0;
+export async function deleteVocabulary(id: string): Promise<boolean> {
+  await initDb();
+  const p = getPool();
+  const res = await p.query('DELETE FROM vocabularies WHERE id = $1', [id]);
+  return (res.rowCount ?? 0) > 0;
 }
 
-export function incrementListenCount(id: string): { listenCount: number; lastListenedAt: string } | null {
-  const db = getDb();
-  const now = new Date().toISOString();
-  db.prepare(`
-    UPDATE vocabularies 
-    SET listen_count = listen_count + 1, last_listened_at = ?, updated_at = ?
-    WHERE id = ?
-  `).run(now, now, id);
-
-  const row = db.prepare('SELECT listen_count as listenCount, last_listened_at as lastListenedAt FROM vocabularies WHERE id = ?').get(id) as any;
-  return row || null;
+export async function incrementListenCount(id: string): Promise<{ listenCount: number; lastListenedAt: string } | null> {
+  await initDb();
+  const p = getPool();
+  const res = await p.query(
+    `UPDATE vocabularies 
+     SET listen_count = listen_count + 1, last_listened_at = NOW(), updated_at = NOW()
+     WHERE id = $1
+     RETURNING listen_count as "listenCount", last_listened_at as "lastListenedAt"`,
+    [id]
+  );
+  return res.rows[0] || null;
 }
 
-export function updateVocabularyStatus(id: string, status: string): boolean {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const res = db.prepare(`
-    UPDATE vocabularies SET status = ?, updated_at = ? WHERE id = ?
-  `).run(status, now, id);
-  return res.changes > 0;
+export async function updateVocabularyStatus(id: string, status: string): Promise<boolean> {
+  await initDb();
+  const p = getPool();
+  const res = await p.query(`UPDATE vocabularies SET status = $1, updated_at = NOW() WHERE id = $2`, [status, id]);
+  return (res.rowCount ?? 0) > 0;
 }
 
-export function findDuplicates(words: string[]): Record<string, { exists: boolean; existingDate?: string; existingId?: string }> {
-  const db = getDb();
+export async function findDuplicates(
+  words: string[]
+): Promise<Record<string, { exists: boolean; existingDate?: string; existingId?: string }>> {
+  await initDb();
+  const p = getPool();
   const result: Record<string, { exists: boolean; existingDate?: string; existingId?: string }> = {};
 
   for (const word of words) {
     const cleanWord = word.trim().toLowerCase();
-    const row = db.prepare(`
-      SELECT v.id, d.date 
-      FROM vocabularies v
-      JOIN vocabulary_days d ON v.day_id = d.id
-      WHERE LOWER(v.word) = ?
-      LIMIT 1
-    `).get(cleanWord) as { id: string; date: string } | undefined;
+    const res = await p.query(
+      `SELECT v.id, d.date 
+       FROM vocabularies v
+       JOIN vocabulary_days d ON v.day_id = d.id
+       WHERE LOWER(v.word) = $1
+       LIMIT 1`,
+      [cleanWord]
+    );
 
-    if (row) {
+    if (res.rows.length > 0) {
       result[cleanWord] = {
         exists: true,
-        existingDate: row.date,
-        existingId: row.id,
+        existingDate: res.rows[0].date,
+        existingId: res.rows[0].id,
       };
     } else {
       result[cleanWord] = {
@@ -356,7 +369,7 @@ export function findDuplicates(words: string[]): Record<string, { exists: boolea
   return result;
 }
 
-export function importVocabularies(
+export async function importVocabularies(
   date: string,
   items: Array<{
     word: string;
@@ -365,87 +378,83 @@ export function importVocabularies(
     meaning: string;
     resolution?: ConflictResolution;
   }>
-): { added: number; updated: number; skipped: number } {
-  const db = getDb();
-  const dayId = getOrCreateDay(date);
-  const now = new Date().toISOString();
+): Promise<{ added: number; updated: number; skipped: number }> {
+  await initDb();
+  const p = getPool();
+  const dayId = await getOrCreateDay(date);
 
   let added = 0;
   let updated = 0;
   let skipped = 0;
 
-  const insertStmt = db.prepare(`
-    INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, status, listen_count, last_listened_at, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, 'NEW', 0, NULL, ?, ?)
-  `);
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const resolution = item.resolution || 'skip';
 
-  const updateStmt = db.prepare(`
-    UPDATE vocabularies
-    SET phonetic = ?, part_of_speech = ?, meaning = ?, updated_at = ?
-    WHERE id = ?
-  `);
+    const existingRes = await p.query('SELECT id FROM vocabularies WHERE LOWER(word) = LOWER($1) LIMIT 1', [
+      item.word.trim(),
+    ]);
 
-  const findExistingStmt = db.prepare(`
-    SELECT id FROM vocabularies WHERE LOWER(word) = LOWER(?) LIMIT 1
-  `);
-
-  const tx = db.transaction(() => {
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const resolution = item.resolution || 'skip';
-      const existing = findExistingStmt.get(item.word.trim()) as { id: string } | undefined;
-
-      if (existing) {
-        if (resolution === 'skip') {
-          skipped++;
-          continue;
-        } else if (resolution === 'update') {
-          updateStmt.run(item.phonetic || '', item.partOfSpeech || '', item.meaning, now, existing.id);
-          updated++;
-          continue;
-        }
-        // if resolution === 'duplicate', proceed to insert new
+    if (existingRes.rows.length > 0) {
+      const existingId = existingRes.rows[0].id;
+      if (resolution === 'skip') {
+        skipped++;
+        continue;
+      } else if (resolution === 'update') {
+        await p.query(
+          `UPDATE vocabularies
+           SET phonetic = $1, part_of_speech = $2, meaning = $3, updated_at = NOW()
+           WHERE id = $4`,
+          [item.phonetic || '', item.partOfSpeech || '', item.meaning.trim(), existingId]
+        );
+        updated++;
+        continue;
       }
-
-      const id = `vocab_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`;
-      insertStmt.run(id, dayId, item.word.trim(), item.phonetic || '', item.partOfSpeech || '', item.meaning.trim(), now, now);
-      added++;
     }
-  });
 
-  tx();
+    const id = `vocab_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`;
+    await p.query(
+      `INSERT INTO vocabularies (id, day_id, word, phonetic, part_of_speech, meaning, status, listen_count)
+       VALUES ($1, $2, $3, $4, $5, $6, 'NEW', 0)`,
+      [id, dayId, item.word.trim(), item.phonetic || '', item.partOfSpeech || '', item.meaning.trim()]
+    );
+    added++;
+  }
 
   return { added, updated, skipped };
 }
 
-export function getStatistics(): StatisticsData {
-  const db = getDb();
+export async function getStatistics(): Promise<StatisticsData> {
+  await initDb();
+  const p = getPool();
   const today = new Date().toISOString().split('T')[0];
 
-  const overall = db.prepare(`
+  const overallRes = await p.query(`
     SELECT 
-      COUNT(id) as totalWords,
-      SUM(CASE WHEN status = 'LEARNED' THEN 1 ELSE 0 END) as learnedWords,
-      SUM(CASE WHEN status = 'LEARNING' THEN 1 ELSE 0 END) as learningWords,
-      SUM(CASE WHEN status = 'NEW' THEN 1 ELSE 0 END) as unlearnedWords,
-      SUM(listen_count) as totalListens
+      COUNT(id) as "totalWords",
+      SUM(CASE WHEN status = 'LEARNED' THEN 1 ELSE 0 END) as "learnedWords",
+      SUM(CASE WHEN status = 'LEARNING' THEN 1 ELSE 0 END) as "learningWords",
+      SUM(CASE WHEN status = 'NEW' THEN 1 ELSE 0 END) as "unlearnedWords",
+      COALESCE(SUM(listen_count), 0) as "totalListens"
     FROM vocabularies
-  `).get() as any;
+  `);
+  const overall = overallRes.rows[0] || {};
 
-  const todayStats = db.prepare(`
-    SELECT 
-      COUNT(v.id) as todayWords,
-      SUM(CASE WHEN date(v.last_listened_at) = date('now') THEN v.listen_count ELSE 0 END) as listenedToday
-    FROM vocabularies v
-    JOIN vocabulary_days d ON v.day_id = d.id
-    WHERE d.date = ?
-  `).get(today) as any;
+  const todayRes = await p.query(
+    `SELECT 
+       COUNT(v.id) as "todayWords",
+       COALESCE(SUM(CASE WHEN v.last_listened_at::date = CURRENT_DATE THEN v.listen_count ELSE 0 END), 0) as "listenedToday"
+     FROM vocabularies v
+     JOIN vocabulary_days d ON v.day_id = d.id
+     WHERE d.date = $1`,
+    [today]
+  );
+  const todayStats = todayRes.rows[0] || {};
 
-  // Compute consecutive streak days with vocabularies
-  const days = db.prepare('SELECT date FROM vocabulary_days ORDER BY date DESC').all() as { date: string }[];
+  const daysRes = await p.query('SELECT date FROM vocabulary_days ORDER BY date DESC');
+  const days = daysRes.rows;
   let streak = 0;
   if (days.length > 0) {
-    // Check if the latest day is today or yesterday
     const nowMs = new Date(today).getTime();
     let prevMs = nowMs;
     for (const d of days) {
@@ -461,21 +470,23 @@ export function getStatistics(): StatisticsData {
   }
 
   return {
-    todayWords: Number(todayStats?.todayWords || 0),
-    learnedWords: Number(overall?.learnedWords || 0),
-    learningWords: Number(overall?.learningWords || 0),
-    unlearnedWords: Number(overall?.unlearnedWords || 0),
-    listenedToday: Number(todayStats?.listenedToday || 0),
-    totalListens: Number(overall?.totalListens || 0),
-    totalWords: Number(overall?.totalWords || 0),
-    streakDays: streak > 0 ? streak : (overall?.totalWords > 0 ? 1 : 0),
+    todayWords: parseInt(todayStats.todayWords, 10) || 0,
+    learnedWords: parseInt(overall.learnedWords, 10) || 0,
+    learningWords: parseInt(overall.learningWords, 10) || 0,
+    unlearnedWords: parseInt(overall.unlearnedWords, 10) || 0,
+    listenedToday: parseInt(todayStats.listenedToday, 10) || 0,
+    totalListens: parseInt(overall.totalListens, 10) || 0,
+    totalWords: parseInt(overall.totalWords, 10) || 0,
+    streakDays: streak > 0 ? streak : (parseInt(overall.totalWords, 10) > 0 ? 1 : 0),
     todayDate: today,
   };
 }
 
-export function getUserSettings(): UserSettings {
-  const db = getDb();
-  const row = db.prepare('SELECT * FROM user_settings WHERE id = ?').get('default') as any;
+export async function getUserSettings(): Promise<UserSettings> {
+  await initDb();
+  const p = getPool();
+  const res = await p.query('SELECT * FROM user_settings WHERE id = $1', ['default']);
+  const row = res.rows[0];
   if (!row) {
     return {
       id: 'default',
@@ -505,26 +516,28 @@ export function getUserSettings(): UserSettings {
   };
 }
 
-export function updateUserSettings(settings: Partial<UserSettings>): UserSettings {
-  const db = getDb();
-  const current = getUserSettings();
+export async function updateUserSettings(settings: Partial<UserSettings>): Promise<UserSettings> {
+  await initDb();
+  const p = getPool();
+  const current = await getUserSettings();
   const updated = { ...current, ...settings };
 
-  db.prepare(`
-    UPDATE user_settings
-    SET voice = ?, speed = ?, pitch = ?, volume = ?, repeat_count = ?,
-        pause_between_words = ?, auto_mark_listened = ?, auto_mark_learned = ?, theme = ?
-    WHERE id = 'default'
-  `).run(
-    updated.voice,
-    updated.speed,
-    updated.pitch,
-    updated.volume,
-    updated.repeatCount,
-    updated.pauseBetweenWords,
-    updated.autoMarkListened ? 1 : 0,
-    updated.autoMarkLearned ? 1 : 0,
-    updated.theme
+  await p.query(
+    `UPDATE user_settings
+     SET voice = $1, speed = $2, pitch = $3, volume = $4, repeat_count = $5,
+         pause_between_words = $6, auto_mark_listened = $7, auto_mark_learned = $8, theme = $9
+     WHERE id = 'default'`,
+    [
+      updated.voice,
+      updated.speed,
+      updated.pitch,
+      updated.volume,
+      updated.repeatCount,
+      updated.pauseBetweenWords,
+      updated.autoMarkListened,
+      updated.autoMarkLearned,
+      updated.theme,
+    ]
   );
 
   return updated;
