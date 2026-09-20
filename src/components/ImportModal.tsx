@@ -296,7 +296,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                     style={{ fontSize: 11, padding: '2px 8px', gap: 4 }}
                     onClick={() => setRawText(SEED_RAW_TEXT)}
                     type="button"
-                    title="Dán nhanh 20 từ mẫu để thử nghiệm"
+                    title="Nạp dữ liệu mẫu để thử nghiệm"
                   >
                     <Zap size={12} />
                     <span>Nạp ví dụ mẫu</span>
@@ -305,10 +305,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
                 <textarea
                   className="textarea-control"
-                  placeholder={`Abandon /əˈbændən/ (v): Từ bỏ\nAbility /əˈbɪləti/ (n): Khả năng\nAccording to /əˈkɔːrdɪŋ tuː/ (prep): Theo như`}
+                  placeholder={`Achieve /əˈtʃiːv/ (v)\nNghĩa: Đạt được\nCách dùng / Collocations: achieve a goal / target / success; achieve one's dream\nVí dụ: She worked hard to achieve her dream of becoming a doctor. (Cô ấy đã làm việc chăm chỉ để đạt được giấc mơ trở thành bác sĩ.)\n\nAchievement /əˈtʃiːvmənt/ (n)\nNghĩa: Thành tựu, thành tích\nCách dùng / Collocations: sense of achievement; great / major achievement\nVí dụ: Winning the championship was a great achievement for the team. (Đoạt chức vô địch là một thành tựu tuyệt vời đối với toàn đội.)`}
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
-                  rows={6}
+                  rows={8}
                   id="bulk-vocab-textarea"
                 />
               </div>
@@ -505,7 +505,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 <input
                   type="text"
                   className="input-control"
-                  placeholder="VD: Abandon hoặc According to"
+                  placeholder="VD: Achieve"
                   value={manualWord}
                   onChange={(e) => setManualWord(e.target.value)}
                   required
@@ -519,7 +519,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   <input
                     type="text"
                     className="input-control"
-                    placeholder="VD: /əˈbændən/"
+                    placeholder="VD: /əˈtʃiːv/"
                     value={manualPhonetic}
                     onChange={(e) => setManualPhonetic(e.target.value)}
                   />
@@ -530,7 +530,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   <input
                     type="text"
                     className="input-control"
-                    placeholder="VD: v, n, adj, prep"
+                    placeholder="VD: v, n, prep/adv, v/n"
                     value={manualPOS}
                     onChange={(e) => setManualPOS(e.target.value)}
                   />
@@ -542,7 +542,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 <input
                   type="text"
                   className="input-control"
-                  placeholder="VD: Từ bỏ"
+                  placeholder="VD: Đạt được"
                   value={manualMeaning}
                   onChange={(e) => setManualMeaning(e.target.value)}
                   required
@@ -555,7 +555,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 <input
                   type="text"
                   className="input-control"
-                  placeholder="VD: abandon a plan, abandon hope, abandon someone"
+                  placeholder="VD: achieve a goal / target / success; achieve one's dream"
                   value={manualUsage}
                   onChange={(e) => setManualUsage(e.target.value)}
                   id="manual-usage-input"
@@ -567,7 +567,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 <textarea
                   className="textarea-control"
                   rows={2}
-                  placeholder="VD: They had to abandon the car. (Họ đã phải bỏ lại chiếc xe.)"
+                  placeholder="VD: She worked hard to achieve her dream of becoming a doctor. (Cô ấy đã làm việc chăm chỉ để đạt được giấc mơ trở thành bác sĩ.)"
                   value={manualExample}
                   onChange={(e) => setManualExample(e.target.value)}
                   id="manual-example-input"

@@ -625,7 +625,7 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                 <input
                   type="text"
                   className="input-control"
-                  placeholder="VD: abandon hope / ship; abandon sth to sb"
+                  placeholder="VD: achieve a goal / target / success; achieve one's dream"
                   value={editUsage}
                   onChange={(e) => setEditUsage(e.target.value)}
                 />
@@ -636,7 +636,7 @@ export const VocabularyListView: React.FC<VocabularyListViewProps> = ({
                 <textarea
                   className="textarea-control"
                   style={{ minHeight: 70 }}
-                  placeholder="VD: They had to abandon the car in the snow. (Họ đã phải bỏ lại chiếc xe trong bão tuyết.)"
+                  placeholder="VD: She worked hard to achieve her dream of becoming a doctor. (Cô ấy đã làm việc chăm chỉ để đạt được giấc mơ trở thành bác sĩ.)"
                   value={editExample}
                   onChange={(e) => setEditExample(e.target.value)}
                 />
